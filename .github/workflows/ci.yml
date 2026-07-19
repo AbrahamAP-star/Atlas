@@ -71,5 +71,5 @@ jobs:
           cache-dependency-path: frontend2.0/package-lock.json
       - name: Install deps
         run: npm ci
-      - name: Run tests (23 tests: permissions, status, txErrors, useProjects)
+      - name: "Run tests (23 tests: permissions, status, txErrors, useProjects)"
         run: npm run test
