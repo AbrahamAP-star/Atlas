@@ -12,7 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22]
+        # Hardhat 3.9.1 exige Node >=22.13.0 (ver docs.hardhat.org) — Node 20
+        # revienta con "ERROR: You are using Node.js 20.x which is not
+        # supported by Hardhat". No hay matrix de compatibilidad aqui, solo
+        # confirmamos 2 versiones dentro del rango soportado.
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
