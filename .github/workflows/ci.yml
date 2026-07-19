@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  contracts:
+    name: Contracts (Hardhat)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+      - name: Install deps
+        run: npm ci
+      - name: Compile
+        run: npm run compile
+      - name: Run tests (incluye asserts de gas 350k/120k)
+        run: npm test
+
+  gas-report:
+    name: Gas report (comentario en el PR)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      - run: npm ci
+      - name: Correr test:gas
+        run: REPORT_GAS=true npm run test:gas > gas-report.txt 2>&1 || true
+      - name: Comentar reporte en el PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('gas-report.txt', 'utf8').slice(-60000);
+            const body = `### ⛽ Gas report\n\`\`\`\n${report}\n\`\`\`\n\n> Límite duro del cliente (00_PROJECT_OVERVIEW.md): createProject < 350,000 gas · pledge < 120,000 gas`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+  frontend:
+    name: Frontend (frontend2.0)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    defaults:
+      run:
+        working-directory: frontend2.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: frontend2.0/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Run tests (23 tests: permissions, status, txErrors, useProjects)
+        run: npm run test

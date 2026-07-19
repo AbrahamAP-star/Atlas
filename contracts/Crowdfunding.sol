@@ -6,108 +6,109 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title Crowdfunding
- * @notice Plataforma de financiación descentralizada. Custodia los fondos on-chain:
- *         si un proyecto alcanza su meta antes del deadline, el creador puede reclamar
- *         el total recaudado; si no la alcanza, cada aportante puede reembolsarse
- *         individualmente. No existe ninguna función de administrador que pueda
- *         bloquear alguno de estos dos caminos de salida (ver 05_CRITICAL_REVIEW.md).
- * @dev Patrón pull-payment: nunca se envía ETH de forma "push" con loops sobre backers.
- *      Cada usuario retira lo que le corresponde llamando él mismo a claimFunds/refund.
+ * @notice Decentralized crowdfunding platform. There is no deadline: a project
+ *         stays open to pledges indefinitely. `goal` is no longer a term with a
+ *         fixed target but the MINIMUM amount that unlocks withdrawal for the
+ *         creator; once reached, the creator decides when to claim (`claimFunds`),
+ *         and the project keeps accepting pledges until then. As long as the
+ *         creator hasn't claimed, any backer can refund themselves individually
+ *         at any time (this is the funds exit path required by the client — see
+ *         05_CRITICAL_REVIEW.md — since there is no "deadline failure" that
+ *         triggers it automatically). There is no admin function that can block
+ *         either of these two exit paths.
+ * @dev Pull-payment pattern: ETH is never sent "push"-style with loops over backers.
+ *      Each user withdraws what's owed by calling claimFunds/refund themselves.
  *
- *      Se usa ReentrancyGuardTransient (storage transient / EIP-1153) en vez de
- *      ReentrancyGuard clásico: el lock usa TSTORE/TLOAD en vez de SSTORE/SLOAD,
- *      lo que ahorra ~2500-5000 gas por llamada. Esto importa porque `pledge` tiene
- *      un presupuesto duro de 120,000 gas. Requiere una red con soporte de Cancún/
- *      EIP-1153 (Base, Arbitrum y Optimism ya lo soportan en 2026).
- *      Fuente: OpenZeppelin Contracts v5.6.1, utils/ReentrancyGuardTransient.sol.
+ *      Uses ReentrancyGuardTransient (transient storage / EIP-1153) instead of the
+ *      classic ReentrancyGuard: the lock uses TSTORE/TLOAD instead of SSTORE/SLOAD,
+ *      saving ~2500-5000 gas per call. This matters because `pledge` has a hard
+ *      budget of 120,000 gas. Requires a network with Cancun/EIP-1153 support
+ *      (Base, Arbitrum and Optimism already support it in 2026).
+ *      Source: OpenZeppelin Contracts v5.6.1, utils/ReentrancyGuardTransient.sol.
  */
 contract Crowdfunding is ReentrancyGuardTransient {
     using SafeCast for uint256;
 
     // ---------------------------------------------------------------------
-    // Tipos y storage
+    // Types and storage
     // ---------------------------------------------------------------------
 
-    /// @dev Orden de campos pensado para packing: slot0 = creator+goal (32 bytes
-    ///      exactos), slot1 = pledged+deadline+claimed (18/32 bytes). metadataCID
-    ///      es dinámico y usa sus propios slots. No reordenar sin recalcular esto.
+    /// @dev Field order chosen for packing: slot0 = creator+goal (exactly 32
+    ///      bytes), slot1 = pledged+claimed (13/32 bytes, room to spare). No
+    ///      `deadline` (no longer exists). metadataCID is dynamic and uses its
+    ///      own slots. Do not reorder without recalculating this.
     struct Project {
         address payable creator; // 20 bytes ┐ slot 0
-        uint96 goal;              // 12 bytes ┘ (32 bytes exactos)
-        uint96 pledged;           // 12 bytes ┐
-        uint40 deadline;          //  5 bytes │ slot 1
+        uint96 goal;              // 12 bytes ┘ (exactly 32 bytes) — minimum amount to allow withdrawal
+        uint96 pledged;           // 12 bytes ┐ slot 1
         bool claimed;              //  1 byte  ┘
-        string metadataCID;       // slot(s) dinámicos — referencia a IPFS
+        string metadataCID;       // dynamic slot(s) — reference to IPFS
     }
 
-    /// @notice Id que se asignará al próximo proyecto creado. También funciona como
-    ///         límite superior para validar que un id existe (id < nextProjectId).
+    /// @notice Id that will be assigned to the next created project. Also acts
+    ///         as the upper bound to validate that an id exists (id < nextProjectId).
     uint32 public nextProjectId;
 
-    /// @notice Datos de cada proyecto, indexados por id incremental.
+    /// @notice Data for each project, indexed by incremental id.
     mapping(uint256 id => Project project) public projects;
 
-    /// @notice Cuánto aportó cada wallet a cada proyecto (necesario para refund individual).
+    /// @notice How much each wallet pledged to each project (needed for individual refund).
     mapping(uint256 id => mapping(address backer => uint96 amount)) public pledges;
 
     // ---------------------------------------------------------------------
-    // Eventos (uno por acción relevante, requisito del cliente)
+    // Events (one per relevant action, client requirement)
     // ---------------------------------------------------------------------
 
-    event ProjectCreated(uint256 indexed id, address indexed creator, uint96 goal, uint40 deadline);
+    event ProjectCreated(uint256 indexed id, address indexed creator, uint96 goal);
     event Pledged(uint256 indexed id, address indexed backer, uint96 amount);
     event FundsClaimed(uint256 indexed id, uint96 amount);
     event Refunded(uint256 indexed id, address indexed backer, uint96 amount);
+    event ProjectDeleted(uint256 indexed id);
 
     // ---------------------------------------------------------------------
-    // Errores personalizados
+    // Custom errors
     // ---------------------------------------------------------------------
-    // Se usan custom errors en vez de require(string) porque cuestan menos gas
-    // (no se codifica ni almacena el string del mensaje) — relevante para los
-    // límites de 350k/120k gas de este contrato.
+    // Custom errors are used instead of require(string) because they cost less
+    // gas (the message string isn't encoded/stored) — relevant for this
+    // contract's 350k/120k gas limits.
 
     error InvalidGoal();
-    error InvalidDuration();
     error ProjectNotFound(uint256 id);
-    error ProjectExpired(uint256 id);
-    error ProjectNotExpired(uint256 id);
+    error ProjectClosed(uint256 id);
     error ZeroPledge();
     error ProjectNotSuccessful(uint256 id);
-    error ProjectWasSuccessful(uint256 id);
     error AlreadyClaimed(uint256 id);
     error NotProjectCreator(uint256 id);
     error NoFundsToRefund(uint256 id);
     error TransferFailed();
+    /// @dev Reverts if trying to delete a project with unclaimed pledges:
+    ///      deleting it would leave those backers with no way to recover their
+    ///      contribution (see deleteProject for full detail).
+    error ProjectHasActiveFunds(uint256 id);
 
     // ---------------------------------------------------------------------
-    // Vistas (no modifican estado)
+    // Views (do not modify state)
     // ---------------------------------------------------------------------
 
-    /// @notice Devuelve los datos completos de un proyecto.
+    /// @notice Returns the full data of a project.
     function getProject(uint256 id) external view returns (Project memory) {
         _requireProjectExists(id);
         return projects[id];
     }
 
-    /// @notice Cuánto aportó `backer` al proyecto `id`.
+    /// @notice How much `backer` pledged to project `id`.
     function pledgeOf(uint256 id, address backer) external view returns (uint96) {
         return pledges[id][backer];
     }
 
-    /// @notice `true` si el proyecto alcanzó (o superó) su meta.
+    /// @notice `true` if the project reached (or exceeded) its goal.
     function isSuccessful(uint256 id) external view returns (bool) {
         _requireProjectExists(id);
         return _isSuccessful(id);
     }
 
-    /// @notice `true` si ya pasó el deadline del proyecto.
-    function isExpired(uint256 id) external view returns (bool) {
-        _requireProjectExists(id);
-        return _isExpired(id);
-    }
-
     // ---------------------------------------------------------------------
-    // Internas de validación/lectura (evitan duplicar lógica y checks)
+    // Internal validation/read helpers (avoid duplicating logic and checks)
     // ---------------------------------------------------------------------
 
     function _requireProjectExists(uint256 id) internal view {
@@ -118,91 +119,88 @@ contract Crowdfunding is ReentrancyGuardTransient {
         return projects[id].pledged >= projects[id].goal;
     }
 
-    function _isExpired(uint256 id) internal view returns (bool) {
-        return block.timestamp > projects[id].deadline;
-    }
-
     // ---------------------------------------------------------------------
-    // Cambios de estado (al final del archivo, convención de legibilidad del
-    // equipo — no aporta seguridad por sí sola, ver 05_CRITICAL_REVIEW.md).
+    // State changes (at the end of the file, team readability convention —
+    // does not add security by itself, see 05_CRITICAL_REVIEW.md).
     // ---------------------------------------------------------------------
 
     /**
-     * @notice Crea un proyecto de crowdfunding.
-     * @param goal Meta a recaudar, en wei. Debe ser mayor a 0.
-     * @param durationSeconds Duración de la campaña desde ahora, en segundos. Debe ser mayor a 0.
-     * @param metadataCID CID de IPFS con la metadata (descripción, imagen).
-     * @return id Id incremental asignado al proyecto.
+     * @notice Creates a crowdfunding project with no deadline.
+     * @param goal Minimum amount, in wei, that allows the creator to withdraw. Must be greater than 0.
+     * @param metadataCID IPFS CID with the metadata (description, image).
+     * @return id Incremental id assigned to the project.
      *
-     * @dev `metadataCID` usa `calldata` en vez de `memory`: al ser un string que llega
-     *      desde fuera y solo se guarda (nunca se modifica dentro de la función),
-     *      calldata evita la copia extra a memoria y abarata el gas de esta función.
-     *      goal==0 y durationSeconds==0 se rechazan explícitamente: un proyecto con
-     *      goal=0 sería "exitoso" (pledged >= goal) sin haber recibido ni un wei,
-     *      lo cual rompe la semántica de claim/refund.
+     * @dev `metadataCID` uses `calldata` instead of `memory`: since it's a string
+     *      that arrives from outside and is only stored (never modified inside
+     *      the function), calldata avoids the extra copy to memory and cheapens
+     *      this function's gas cost. goal==0 is explicitly rejected: a project
+     *      with goal=0 would be "successful" (pledged >= goal) without having
+     *      received a single wei, which breaks claimFunds semantics. There is no
+     *      more `durationSeconds`/`deadline`: the project stays open to pledges
+     *      indefinitely until the creator claims.
      */
     function createProject(
         uint96 goal,
-        uint40 durationSeconds,
         string calldata metadataCID
     ) external returns (uint256 id) {
         if (goal == 0) revert InvalidGoal();
-        if (durationSeconds == 0) revert InvalidDuration();
-
-        uint40 deadline = (block.timestamp + durationSeconds).toUint40();
 
         id = nextProjectId;
-        nextProjectId++; // checked por defecto en Solidity 0.8+, revierte si desborda uint32
+        nextProjectId++; // checked by default in Solidity 0.8+, reverts on uint32 overflow
 
         projects[id] = Project({
             creator: payable(msg.sender),
             goal: goal,
             pledged: 0,
-            deadline: deadline,
             claimed: false,
             metadataCID: metadataCID
         });
 
-        emit ProjectCreated(id, msg.sender, goal, deadline);
+        emit ProjectCreated(id, msg.sender, goal);
     }
 
     /**
-     * @notice Aporta ETH nativo a un proyecto existente.
-     * @dev Checks-Effects-Interactions: no hay ninguna llamada externa en esta función
-     *      (no envía ETH), pero se mantiene `nonReentrant` como defensa en profundidad
-     *      y por consistencia con el resto de funciones de cambio de estado.
-     *      Se rechaza msg.value == 0: un pledge de 0 no aporta nada, solo generaría
-     *      ruido de eventos/logs sin motivo (ver recomendación en 05_CRITICAL_REVIEW.md).
+     * @notice Pledges native ETH to an existing project.
+     * @dev Checks-Effects-Interactions: there is no external call in this
+     *      function (it doesn't send ETH), but `nonReentrant` is kept as
+     *      defense in depth and for consistency with the other state-changing
+     *      functions. msg.value == 0 is rejected: a pledge of 0 contributes
+     *      nothing, it would only create event/log noise for no reason (see
+     *      recommendation in 05_CRITICAL_REVIEW.md).
      */
     function pledge(uint256 id) external payable nonReentrant {
         _requireProjectExists(id);
         if (msg.value == 0) revert ZeroPledge();
-        if (_isExpired(id)) revert ProjectExpired(id);
+        // A project stops accepting pledges once the creator has already
+        // claimed the funds (`claimed`) or once the creator deleted it
+        // (`deleteProject` leaves `creator == address(0)`, since
+        // `id < nextProjectId` still holds and so `_requireProjectExists`
+        // alone can't detect it).
+        if (projects[id].claimed || projects[id].creator == address(0)) revert ProjectClosed(id);
 
-        uint96 amount = msg.value.toUint96(); // revierte si msg.value > type(uint96).max, no trunca en silencio
+        uint96 amount = msg.value.toUint96(); // reverts if msg.value > type(uint96).max, never truncates silently
 
-        pledges[id][msg.sender] += amount; // suma checked: revierte si desborda uint96
+        pledges[id][msg.sender] += amount; // checked addition: reverts on uint96 overflow
         projects[id].pledged += amount;
 
         emit Pledged(id, msg.sender, amount);
     }
 
     /**
-     * @notice El creador retira el total recaudado si el proyecto tuvo éxito.
-     * @dev Effects (claimed = true) antes de la interaction (call), siguiendo CEI.
+     * @notice The creator withdraws the total raised if the project succeeded.
+     * @dev Effects (claimed = true) before the interaction (call), following CEI.
      */
     function claimFunds(uint256 id) external nonReentrant {
         _requireProjectExists(id);
         Project storage project = projects[id];
 
         if (msg.sender != project.creator) revert NotProjectCreator(id);
-        if (!_isExpired(id)) revert ProjectNotExpired(id);
         if (!_isSuccessful(id)) revert ProjectNotSuccessful(id);
         if (project.claimed) revert AlreadyClaimed(id);
 
         uint96 amount = project.pledged;
 
-        project.claimed = true; // effect antes de la interaction
+        project.claimed = true; // effect before the interaction
 
         (bool success, ) = project.creator.call{value: amount}("");
         if (!success) revert TransferFailed();
@@ -211,24 +209,69 @@ contract Crowdfunding is ReentrancyGuardTransient {
     }
 
     /**
-     * @notice Cualquier backer recupera su propio aporte si el proyecto no tuvo éxito.
-     * @dev Reembolso individual (sin loop sobre todos los backers): evita que un
-     *      backer bloquee el refund de los demás y evita DoS por gas si la lista
-     *      de backers crece (ver 02_SMART_CONTRACT_SPEC.md).
+     * @notice Any backer recovers their own pledge, at any time, as long as
+     *         the creator hasn't claimed the funds.
+     * @dev Without a deadline there is no "campaign failure" that triggers the
+     *      refund automatically, so this is now the ONLY exit path for a
+     *      backer who changes their mind before the creator withdraws (hard
+     *      client requirement: no funds may end up locked with no exit, see
+     *      05_CRITICAL_REVIEW.md). It's only blocked once `claimed == true`,
+     *      because at that point the backer's ETH has already left the
+     *      contract to the creator and there's nothing left to refund.
+     *      Also decreases `project.pledged` (not just `pledges[id][msg.sender]`):
+     *      unlike the previous model (where refund only happened after an
+     *      irreversible failure and `pledged` was never read again), here a
+     *      project can keep receiving pledges after a refund, so `pledged`
+     *      must always reflect the real available balance — otherwise
+     *      `isSuccessful`/`claimFunds` would read an inflated total that is
+     *      no longer in the contract.
+     *      Individual refund (no loop over all backers): prevents a backer
+     *      from blocking everyone else's refund and avoids gas DoS if the
+     *      backer list grows (see 02_SMART_CONTRACT_SPEC.md).
      */
     function refund(uint256 id) external nonReentrant {
         _requireProjectExists(id);
-        if (!_isExpired(id)) revert ProjectNotExpired(id);
-        if (_isSuccessful(id)) revert ProjectWasSuccessful(id);
+        Project storage project = projects[id];
+        if (project.claimed) revert AlreadyClaimed(id);
 
         uint96 amount = pledges[id][msg.sender];
         if (amount == 0) revert NoFundsToRefund(id);
 
-        pledges[id][msg.sender] = 0; // effect antes de la interaction
+        pledges[id][msg.sender] = 0; // effect before the interaction
+        project.pledged -= amount;   // keeps `pledged` equal to the real remaining balance
 
         (bool success, ) = payable(msg.sender).call{value: amount}("");
         if (!success) revert TransferFailed();
 
         emit Refunded(id, msg.sender, amount);
+    }
+
+    /**
+     * @notice The creator deletes their own published project, whether or not
+     *         the funds were already claimed.
+     * @dev Only allowed if there are no backer funds left at risk:
+     *      `pledged == 0` (never received pledges, or all were refunded) or
+     *      `claimed == true` (the creator already withdrew the total, nothing
+     *      left pending refund). If there were unclaimed pledges
+     *      (`pledged > 0 && !claimed`), deleting would leave those backers with
+     *      no way to recover their contribution (refund would read
+     *      `pledged == 0` after deletion and revert on underflow), violating
+     *      the hard rule of "no funds locked with no exit"
+     *      (02_SMART_CONTRACT_SPEC.md) — that's why that case is explicitly
+     *      rejected instead of always allowing deletion.
+     *      `delete` frees the storage slot (gas refund) and triggers Solidity's
+     *      default: `creator` goes back to `address(0)`, which `pledge` already
+     *      treats as "project closed" (see comment in `pledge`).
+     */
+    function deleteProject(uint256 id) external {
+        _requireProjectExists(id);
+        Project storage project = projects[id];
+
+        if (msg.sender != project.creator) revert NotProjectCreator(id);
+        if (project.pledged != 0 && !project.claimed) revert ProjectHasActiveFunds(id);
+
+        delete projects[id];
+
+        emit ProjectDeleted(id);
     }
 }

@@ -7,9 +7,9 @@ Cliente: pequeña empresa sin conocimiento técnico de blockchain. Necesita leva
 DApp de crowdfunding on-chain: creación de campañas, aportes desde wallet, custodia de fondos en contrato (no en manos de un admin), liberación de fondos solo si se cumple meta, reembolso automático si no se cumple.
  
 ## Requisitos de aceptación (obligatorios)
-- [ ] Smart contract principal
-- [ ] Frontend completo (React)
-- [ ] Conexión de wallet (MetaMask vía Wagmi/Viem)
+- [x] Smart contract principal
+- [x] Frontend completo (React) — listado/detalle (Fase 4) + crear/pledge/claim/refund (Fase 5)
+- [x] Conexión de wallet (MetaMask vía Wagmi/Viem)
 - [ ] Deploy en una L2
 - [ ] Tests automatizados (Hardhat + Chai)
 - [ ] Documentación técnica
@@ -39,4 +39,10 @@ DApp de crowdfunding on-chain: creación de campañas, aportes desde wallet, cus
 - Reutilizar OpenZeppelin siempre que exista solución probada; no reinventar.
 - Código simple, mantenible por un equipo de 2 personas, replicable localmente sin tocar lógica.
 ## Entregables
-Repositorio único con: `/contracts`, `/frontend`, `/scripts`, `/test`, `/docs`. Ver `03_PLAN_FASES.md` para el orden de construcción y `04_STATUS.md` para el estado actual.
+Repositorio único con: `/contracts`, `/frontend`, `/backend`, `/scripts`, `/test`, `/docs`. `/backend` es un proxy minimo hacia Pinata (oculta el JWT, ver `05_CRITICAL_REVIEW.md`), no un backend de negocio: la fuente de verdad de fondos sigue siendo el contrato. Ver `03_PLAN_FASES.md` para el orden de construcción y `04_STATUS.md` para el estado actual.
+
+## Mejora visual del frontend (bajo demanda, no bloqueante)
+`06_FRONTEND_VISUAL_UPGRADE.md` es un mapa de referencia (no una fase secuencial) con animaciones, hovers, elevación, glow/neón y demás mejoras de UI/UX modernas, para que cualquier agente lo consulte cuando Abraham pida un efecto visual concreto sobre el frontend ya construido en Fases 4/5.
+
+## Roadmap de mejoras post-review
+`09_ROADMAP_MEJORAS.md` trackea 8 puntos identificados en la evaluación del proyecto (2026-07-19: CI, cobertura de tests real de componentes/TxTracker, cierre de Fase 3, backend persistente, etc.), cada uno con opciones para decidir — no una acción ya ejecutada. Consultar antes de asumir que el proyecto está "completo" en alguna área fuera del checklist de arriba.

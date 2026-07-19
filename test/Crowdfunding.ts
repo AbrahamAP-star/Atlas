@@ -3,19 +3,18 @@ import assert from "node:assert/strict";
 import hre from "hardhat";
 import { parseEther } from "viem";
 
-// Límites duros del cliente (ver 00_PROJECT_OVERVIEW.md). Los tests fallan si se
-// superan, convirtiendo la restricción de negocio en un chequeo automatizado.
+// Client hard limits (see 00_PROJECT_OVERVIEW.md). Tests fail if exceeded,
+// turning the business constraint into an automated check.
 const MAX_GAS_CREATE_PROJECT = 350_000n;
 const MAX_GAS_PLEDGE = 120_000n;
 
-const ONE_DAY = 24n * 60n * 60n;
-const SAMPLE_CID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"; // CIDv1 de ejemplo
+const SAMPLE_CID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"; // sample CIDv1
 
 const { viem, networkHelpers } = await hre.network.create();
 
 describe("Crowdfunding", function () {
   // -----------------------------------------------------------------------
-  // Fixture: despliega el contrato una vez y reutiliza el snapshot entre tests
+  // Fixture: deploys the contract once and reuses the snapshot across tests
   // -----------------------------------------------------------------------
   async function deployCrowdfundingFixture() {
     const crowdfunding = await viem.deployContract("Crowdfunding");
@@ -24,60 +23,58 @@ describe("Crowdfunding", function () {
     return { crowdfunding, creator, backer1, backer2, publicClient };
   }
 
-  /** Crea un proyecto con valores por defecto razonables y devuelve su id. */
+  /** Creates a project with the default goal and returns the tx hash. */
   async function createDefaultProject(
     crowdfunding: Awaited<ReturnType<typeof viem.deployContract>>,
     goal = parseEther("1"),
-    durationSeconds = ONE_DAY,
   ) {
-    const hash = await crowdfunding.write.createProject([goal, Number(durationSeconds), SAMPLE_CID]);
-    return hash;
+    return crowdfunding.write.createProject([goal, SAMPLE_CID]);
   }
 
   // -----------------------------------------------------------------------
   // createProject
   // -----------------------------------------------------------------------
   describe("createProject", function () {
-    it("crea el proyecto, emite ProjectCreated y respeta el presupuesto de 350k gas", async function () {
+    it("creates the project, emits ProjectCreated and respects the 350k gas budget", async function () {
       const { crowdfunding, publicClient } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
 
       const goal = parseEther("2");
-      const deadlineExpected = (await networkHelpers.time.latest()) + Number(ONE_DAY);
-
-      const hash = await crowdfunding.write.createProject([goal, Number(ONE_DAY), SAMPLE_CID]);
+      const hash = await crowdfunding.write.createProject([goal, SAMPLE_CID]);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
       assert.ok(
         receipt.gasUsed <= MAX_GAS_CREATE_PROJECT,
-        `createProject usó ${receipt.gasUsed} gas, supera el límite de ${MAX_GAS_CREATE_PROJECT}`,
+        `createProject used ${receipt.gasUsed} gas, exceeds the ${MAX_GAS_CREATE_PROJECT} limit`,
       );
 
       const project = await crowdfunding.read.getProject([0n]);
       assert.equal(project.goal, goal);
       assert.equal(project.pledged, 0n);
       assert.equal(project.claimed, false);
-      // Margen de 5s por variación de timestamp entre el cálculo local y el minado del bloque.
-      assert.ok(Math.abs(Number(project.deadline) - deadlineExpected) <= 5);
-
       assert.equal(await crowdfunding.read.nextProjectId(), 1);
     });
 
-    it("revierte con InvalidGoal si goal == 0", async function () {
+    it("reverts with InvalidGoal if goal == 0", async function () {
       const { crowdfunding } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       await viem.assertions.revertWithCustomError(
-        crowdfunding.write.createProject([0n, Number(ONE_DAY), SAMPLE_CID]),
+        crowdfunding.write.createProject([0n, SAMPLE_CID]),
         crowdfunding,
         "InvalidGoal",
       );
     });
 
-    it("revierte con InvalidDuration si durationSeconds == 0", async function () {
+    // `goal` is declared as uint96 directly in the function signature (no
+    // uint256 -> uint96 cast happens for it like msg.value in pledge), so
+    // the ABI encoder rejects an out-of-range value before it reaches the
+    // contract. This only confirms the upper type bound works end-to-end.
+    it("accepts type(uint96).max as a valid goal (upper type bound)", async function () {
       const { crowdfunding } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
-      await viem.assertions.revertWithCustomError(
-        crowdfunding.write.createProject([parseEther("1"), 0, SAMPLE_CID]),
-        crowdfunding,
-        "InvalidDuration",
-      );
+      const maxGoal = 2n ** 96n - 1n;
+
+      await crowdfunding.write.createProject([maxGoal, SAMPLE_CID]);
+
+      const project = await crowdfunding.read.getProject([0n]);
+      assert.equal(project.goal, maxGoal);
     });
   });
 
@@ -85,7 +82,7 @@ describe("Crowdfunding", function () {
   // pledge
   // -----------------------------------------------------------------------
   describe("pledge", function () {
-    it("acepta un aporte válido, emite Pledged y respeta el presupuesto de 120k gas", async function () {
+    it("accepts a valid pledge, emits Pledged and respects the 120k gas budget", async function () {
       const { crowdfunding, backer1, publicClient } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       await createDefaultProject(crowdfunding);
 
@@ -98,7 +95,7 @@ describe("Crowdfunding", function () {
 
       assert.ok(
         receipt.gasUsed <= MAX_GAS_PLEDGE,
-        `pledge usó ${receipt.gasUsed} gas, supera el límite de ${MAX_GAS_PLEDGE}`,
+        `pledge used ${receipt.gasUsed} gas, exceeds the ${MAX_GAS_PLEDGE} limit`,
       );
 
       assert.equal(await crowdfunding.read.pledgeOf([0n, backer1.account.address]), amount);
@@ -106,7 +103,7 @@ describe("Crowdfunding", function () {
       assert.equal(project.pledged, amount);
     });
 
-    it("acumula varios pledges del mismo backer", async function () {
+    it("accumulates multiple pledges from the same backer", async function () {
       const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       await createDefaultProject(crowdfunding);
 
@@ -116,7 +113,24 @@ describe("Crowdfunding", function () {
       assert.equal(await crowdfunding.read.pledgeOf([0n, backer1.account.address]), parseEther("0.5"));
     });
 
-    it("revierte con ZeroPledge si msg.value == 0", async function () {
+    // Regular usage path (2 distinct backers), not just the same-backer
+    // accumulation case above: confirms project.pledged sums correctly and
+    // one backer's pledge never leaks into another's pledgeOf.
+    it("keeps separate accounting for two distinct backers on the same project", async function () {
+      const { crowdfunding, backer1, backer2 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      await createDefaultProject(crowdfunding);
+
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.3") });
+      await crowdfunding.write.pledge([0n], { account: backer2.account, value: parseEther("0.4") });
+
+      assert.equal(await crowdfunding.read.pledgeOf([0n, backer1.account.address]), parseEther("0.3"));
+      assert.equal(await crowdfunding.read.pledgeOf([0n, backer2.account.address]), parseEther("0.4"));
+
+      const project = await crowdfunding.read.getProject([0n]);
+      assert.equal(project.pledged, parseEther("0.7"));
+    });
+
+    it("reverts with ZeroPledge if msg.value == 0", async function () {
       const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       await createDefaultProject(crowdfunding);
 
@@ -127,21 +141,22 @@ describe("Crowdfunding", function () {
       );
     });
 
-    it("revierte con ProjectExpired si ya pasó el deadline", async function () {
-      const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
-      await createDefaultProject(crowdfunding);
-
-      await networkHelpers.time.increase(ONE_DAY + 1n);
+    it("reverts with ProjectClosed if the creator already claimed the funds", async function () {
+      const { crowdfunding, creator, backer1, backer2 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      const goal = parseEther("1");
+      await createDefaultProject(crowdfunding, goal);
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
+      await crowdfunding.write.claimFunds([0n], { account: creator.account });
 
       await viem.assertions.revertWithCustomErrorWithArgs(
-        crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.1") }),
+        crowdfunding.write.pledge([0n], { account: backer2.account, value: parseEther("0.1") }),
         crowdfunding,
-        "ProjectExpired",
+        "ProjectClosed",
         [0n],
       );
     });
 
-    it("revierte con ProjectNotFound si el id no existe", async function () {
+    it("reverts with ProjectNotFound if the id doesn't exist", async function () {
       const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
 
       await viem.assertions.revertWithCustomErrorWithArgs(
@@ -154,20 +169,83 @@ describe("Crowdfunding", function () {
   });
 
   // -----------------------------------------------------------------------
+  // Views: getProject / pledgeOf / isSuccessful
+  // -----------------------------------------------------------------------
+  // These are exercised indirectly inside other describes, but the exact
+  // success boundary (pledged == goal) and the nonexistent-id case for each
+  // view deserve a direct test: 05_CRITICAL_REVIEW.md already documented a
+  // real bug here (a nonexistent id used to read as "successful").
+  describe("views (getProject / pledgeOf / isSuccessful)", function () {
+    it("isSuccessful is false right below goal and true exactly at goal (boundary)", async function () {
+      const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      const goal = parseEther("1");
+      await createDefaultProject(crowdfunding, goal);
+
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal - 1n });
+      assert.equal(await crowdfunding.read.isSuccessful([0n]), false);
+
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: 1n });
+      assert.equal(await crowdfunding.read.isSuccessful([0n]), true);
+    });
+
+    it("pledgeOf returns 0 for a backer that never pledged, without reverting", async function () {
+      const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      await createDefaultProject(crowdfunding);
+
+      assert.equal(await crowdfunding.read.pledgeOf([0n, backer1.account.address]), 0n);
+    });
+
+    it("getProject reverts with ProjectNotFound for a nonexistent id", async function () {
+      const { crowdfunding } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+
+      await viem.assertions.revertWithCustomErrorWithArgs(
+        crowdfunding.read.getProject([99n]),
+        crowdfunding,
+        "ProjectNotFound",
+        [99n],
+      );
+    });
+
+    it("isSuccessful reverts with ProjectNotFound for a nonexistent id", async function () {
+      const { crowdfunding } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+
+      await viem.assertions.revertWithCustomErrorWithArgs(
+        crowdfunding.read.isSuccessful([99n]),
+        crowdfunding,
+        "ProjectNotFound",
+        [99n],
+      );
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // claimFunds
   // -----------------------------------------------------------------------
   describe("claimFunds", function () {
-    it("el creador retira el total recaudado cuando el proyecto tuvo éxito", async function () {
+    // Regression guard, NOT a client hard requirement (only createProject/pledge
+    // have contractual gas limits per 00_PROJECT_OVERVIEW.md). Generous ceiling
+    // only meant to catch an accidental gas blow-up (e.g. an added loop).
+    it("stays under a 150k gas regression ceiling", async function () {
+      const { crowdfunding, creator, backer1, publicClient } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      const goal = parseEther("1");
+      await createDefaultProject(crowdfunding, goal);
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
+
+      const hash = await crowdfunding.write.claimFunds([0n], { account: creator.account });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      assert.ok(receipt.gasUsed <= 150_000n, `claimFunds used ${receipt.gasUsed} gas, exceeds the 150k regression ceiling`);
+    });
+
+    it("the creator withdraws the total raised when the project succeeded", async function () {
       const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
       await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
 
-      await networkHelpers.time.increase(ONE_DAY + 1n);
-
-      // Se verifica el balance del CONTRATO (no el del creador): el creador paga el
-      // gas de su propia llamada, así que su balance neto no cambia exactamente en
-      // `goal`. El contrato, en cambio, sí debe pasar de `goal` a 0 wei.
+      // Checks the CONTRACT's balance (not the creator's): the creator pays the
+      // gas for their own call, so their net balance doesn't change by exactly
+      // `goal`. The contract, on the other hand, must go from `goal` to 0 wei.
       await viem.assertions.balancesHaveChanged(
         crowdfunding.write.claimFunds([0n], { account: creator.account }),
         [{ address: crowdfunding.address, amount: -goal }],
@@ -177,12 +255,11 @@ describe("Crowdfunding", function () {
       assert.equal(project.claimed, true);
     });
 
-    it("revierte con NotProjectCreator si lo llama alguien que no es el creador", async function () {
+    it("reverts with NotProjectCreator if called by someone other than the creator", async function () {
       const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
       await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
-      await networkHelpers.time.increase(ONE_DAY + 1n);
 
       await viem.assertions.revertWithCustomErrorWithArgs(
         crowdfunding.write.claimFunds([0n], { account: backer1.account }),
@@ -192,12 +269,11 @@ describe("Crowdfunding", function () {
       );
     });
 
-    it("revierte con ProjectNotSuccessful si no se alcanzó la meta", async function () {
+    it("reverts with ProjectNotSuccessful if the goal wasn't reached", async function () {
       const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
       await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.4") });
-      await networkHelpers.time.increase(ONE_DAY + 1n);
 
       await viem.assertions.revertWithCustomErrorWithArgs(
         crowdfunding.write.claimFunds([0n], { account: creator.account }),
@@ -207,26 +283,11 @@ describe("Crowdfunding", function () {
       );
     });
 
-    it("revierte con ProjectNotExpired si aún no pasó el deadline", async function () {
+    it("reverts with AlreadyClaimed on a second claim attempt", async function () {
       const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
       await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
-
-      await viem.assertions.revertWithCustomErrorWithArgs(
-        crowdfunding.write.claimFunds([0n], { account: creator.account }),
-        crowdfunding,
-        "ProjectNotExpired",
-        [0n],
-      );
-    });
-
-    it("revierte con AlreadyClaimed en un segundo intento de claim", async function () {
-      const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
-      const goal = parseEther("1");
-      await createDefaultProject(crowdfunding, goal);
-      await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
-      await networkHelpers.time.increase(ONE_DAY + 1n);
 
       await crowdfunding.write.claimFunds([0n], { account: creator.account });
 
@@ -243,7 +304,20 @@ describe("Crowdfunding", function () {
   // refund
   // -----------------------------------------------------------------------
   describe("refund", function () {
-    it("cada backer recupera su propio aporte si el proyecto no tuvo éxito", async function () {
+    // Regression guard, NOT a client hard requirement (see claimFunds note above).
+    it("stays under a 150k gas regression ceiling", async function () {
+      const { crowdfunding, backer1, publicClient } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      const goal = parseEther("1");
+      await createDefaultProject(crowdfunding, goal);
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.3") });
+
+      const hash = await crowdfunding.write.refund([0n], { account: backer1.account });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      assert.ok(receipt.gasUsed <= 150_000n, `refund used ${receipt.gasUsed} gas, exceeds the 150k regression ceiling`);
+    });
+
+    it("each backer recovers their own pledge at any time (independent of goal success)", async function () {
       const { crowdfunding, backer1, backer2 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
@@ -251,41 +325,54 @@ describe("Crowdfunding", function () {
       await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.3") });
       await crowdfunding.write.pledge([0n], { account: backer2.account, value: parseEther("0.2") });
 
-      await networkHelpers.time.increase(ONE_DAY + 1n);
-
-      // Igual que en claimFunds: se mide el balance del contrato (baja exactamente
-      // el monto reembolsado) en vez del balance de backer1, que paga su propio gas.
+      // Same as in claimFunds: the contract's balance is measured (drops by
+      // exactly the refunded amount) instead of backer1's balance, who pays
+      // their own gas.
       await viem.assertions.balancesHaveChanged(
         crowdfunding.write.refund([0n], { account: backer1.account }),
         [{ address: crowdfunding.address, amount: -parseEther("0.3") }],
       );
 
       assert.equal(await crowdfunding.read.pledgeOf([0n, backer1.account.address]), 0n);
-      // El refund de backer1 no debe afectar el pledge de backer2 (reembolso individual).
+      // backer1's refund must not affect backer2's pledge (individual refund).
       assert.equal(await crowdfunding.read.pledgeOf([0n, backer2.account.address]), parseEther("0.2"));
+      // project.pledged must reflect the real remaining balance, not the historical total.
+      const project = await crowdfunding.read.getProject([0n]);
+      assert.equal(project.pledged, parseEther("0.2"));
     });
 
-    it("revierte con ProjectWasSuccessful si el proyecto sí alcanzó la meta", async function () {
+    it("allows refund even if the project already reached the goal, as long as it hasn't been claimed", async function () {
       const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
       await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
-      await networkHelpers.time.increase(ONE_DAY + 1n);
+
+      assert.equal(await crowdfunding.read.isSuccessful([0n]), true);
+
+      await crowdfunding.write.refund([0n], { account: backer1.account });
+      assert.equal(await crowdfunding.read.pledgeOf([0n, backer1.account.address]), 0n);
+    });
+
+    it("reverts with AlreadyClaimed if the creator already withdrew the funds", async function () {
+      const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      const goal = parseEther("1");
+      await createDefaultProject(crowdfunding, goal);
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
+      await crowdfunding.write.claimFunds([0n], { account: creator.account });
 
       await viem.assertions.revertWithCustomErrorWithArgs(
         crowdfunding.write.refund([0n], { account: backer1.account }),
         crowdfunding,
-        "ProjectWasSuccessful",
+        "AlreadyClaimed",
         [0n],
       );
     });
 
-    it("revierte con NoFundsToRefund si el backer nunca aportó", async function () {
+    it("reverts with NoFundsToRefund if the backer never pledged", async function () {
       const { crowdfunding, backer1, backer2 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
       await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.1") });
-      await networkHelpers.time.increase(ONE_DAY + 1n);
 
       await viem.assertions.revertWithCustomErrorWithArgs(
         crowdfunding.write.refund([0n], { account: backer2.account }),
@@ -294,17 +381,112 @@ describe("Crowdfunding", function () {
         [0n],
       );
     });
+  });
 
-    it("revierte con ProjectNotExpired si aún no pasó el deadline", async function () {
-      const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+  // -----------------------------------------------------------------------
+  // deleteProject
+  // -----------------------------------------------------------------------
+  describe("deleteProject", function () {
+    // Regression guard, NOT a client hard requirement (see claimFunds note above).
+    // deleteProject only writes a storage delete (no external call), so it's
+    // expected to be cheaper than claimFunds/refund — same ceiling kept for
+    // consistency, still catches a real regression if logic grows later.
+    it("stays under a 150k gas regression ceiling", async function () {
+      const { crowdfunding, creator, publicClient } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      await createDefaultProject(crowdfunding);
+
+      const hash = await crowdfunding.write.deleteProject([0n], { account: creator.account });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      assert.ok(receipt.gasUsed <= 150_000n, `deleteProject used ${receipt.gasUsed} gas, exceeds the 150k regression ceiling`);
+    });
+
+    it("deletes a project with no pledges, emits ProjectDeleted and frees the id (creator resets to address(0))", async function () {
+      const { crowdfunding, creator } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      await createDefaultProject(crowdfunding);
+
+      await crowdfunding.write.deleteProject([0n], { account: creator.account });
+
+      const project = await crowdfunding.read.getProject([0n]);
+      assert.equal(project.creator, "0x0000000000000000000000000000000000000000");
+      assert.equal(project.pledged, 0n);
+    });
+
+    it("deletes an already-claimed project (claimed == true, pledged > 0)", async function () {
+      const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
       const goal = parseEther("1");
       await createDefaultProject(crowdfunding, goal);
-      await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.1") });
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: goal });
+      await crowdfunding.write.claimFunds([0n], { account: creator.account });
+
+      await crowdfunding.write.deleteProject([0n], { account: creator.account });
+
+      const project = await crowdfunding.read.getProject([0n]);
+      assert.equal(project.creator, "0x0000000000000000000000000000000000000000");
+    });
+
+    it("reverts with ProjectHasActiveFunds if there are unclaimed pledges (protects backers)", async function () {
+      const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      const goal = parseEther("1");
+      await createDefaultProject(crowdfunding, goal);
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.3") });
 
       await viem.assertions.revertWithCustomErrorWithArgs(
-        crowdfunding.write.refund([0n], { account: backer1.account }),
+        crowdfunding.write.deleteProject([0n], { account: creator.account }),
         crowdfunding,
-        "ProjectNotExpired",
+        "ProjectHasActiveFunds",
+        [0n],
+      );
+
+      // The backer can still refund: the project wasn't touched.
+      await crowdfunding.write.refund([0n], { account: backer1.account });
+      assert.equal(await crowdfunding.read.pledgeOf([0n, backer1.account.address]), 0n);
+    });
+
+    it("allows deletion after all backers refunded (pledged goes back to 0)", async function () {
+      const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      const goal = parseEther("1");
+      await createDefaultProject(crowdfunding, goal);
+      await crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.3") });
+      await crowdfunding.write.refund([0n], { account: backer1.account });
+
+      await crowdfunding.write.deleteProject([0n], { account: creator.account });
+      const project = await crowdfunding.read.getProject([0n]);
+      assert.equal(project.creator, "0x0000000000000000000000000000000000000000");
+    });
+
+    it("reverts with NotProjectCreator if called by someone other than the creator", async function () {
+      const { crowdfunding, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      await createDefaultProject(crowdfunding);
+
+      await viem.assertions.revertWithCustomErrorWithArgs(
+        crowdfunding.write.deleteProject([0n], { account: backer1.account }),
+        crowdfunding,
+        "NotProjectCreator",
+        [0n],
+      );
+    });
+
+    it("reverts with ProjectNotFound if the id doesn't exist", async function () {
+      const { crowdfunding, creator } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+
+      await viem.assertions.revertWithCustomErrorWithArgs(
+        crowdfunding.write.deleteProject([99n], { account: creator.account }),
+        crowdfunding,
+        "ProjectNotFound",
+        [99n],
+      );
+    });
+
+    it("a deleted project no longer accepts pledges (reverts with ProjectClosed)", async function () {
+      const { crowdfunding, creator, backer1 } = await networkHelpers.loadFixture(deployCrowdfundingFixture);
+      await createDefaultProject(crowdfunding);
+      await crowdfunding.write.deleteProject([0n], { account: creator.account });
+
+      await viem.assertions.revertWithCustomErrorWithArgs(
+        crowdfunding.write.pledge([0n], { account: backer1.account, value: parseEther("0.1") }),
+        crowdfunding,
+        "ProjectClosed",
         [0n],
       );
     });

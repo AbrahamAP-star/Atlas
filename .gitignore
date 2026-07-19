@@ -2,7 +2,13 @@ node_modules
 .env
 cache
 artifacts
-ignition/deployments
+# NOTA (Fase 3): ignition/deployments/ ya NO se ignora a proposito.
+# Hardhat recomienda versionar ignition/deployments/<deployment-id>/ porque
+# contiene el registro de que se desplego, con que argumentos y en que
+# direccion -- es lo que permite reproducir/verificar un deploy despues.
+# Fuente: hardhat.org/docs/tutorial/deploying ("We recommend committing the
+# ignition/deployments/<deployment-id> directories to version your
+# deployments").
 coverage
 coverage.json
 typechain-types
@@ -12,3 +18,8 @@ typechain-types
 frontend/node_modules
 frontend/dist
 frontend/.env
+
+# Backend (proxy de Pinata)
+backend/node_modules
+backend/dist
+backend/.env

@@ -1,0 +1,884 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Portfolio landing design system.
+ * Tokens mirror the real project (espresso/carbon base + warm gold accent).
+ * To integrate into the destination project, keep the CSS variable names
+ * on :root identical (--ink, --paper, --panel, --accent, --accent-strong,
+ * --shadow-*, --glow-accent, --ease-*, --dur-*) so a find & replace is not
+ * required.
+ */
+
+@theme inline {
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-panel: var(--panel);
+  --color-panel-foreground: var(--ink);
+  --color-muted: var(--panel);
+  --color-muted-foreground: var(--ink-muted);
+  --color-border: var(--hairline);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-foreground: var(--ink);
+  --color-ring: var(--accent);
+
+  /* dApp migration (old frontend -> frontend2.0/TanStack Start): shadcn/ui
+     (components/ui/button.tsx) expects these namespace names (bg-primary,
+     bg-destructive, etc.) that this file didn't have. They're aliased onto
+     the SAME tokens already defined above/below, without creating a parallel palette. */
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--paper);
+  --color-secondary: var(--panel);
+  --color-secondary-foreground: var(--ink);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--ink);
+  --color-input: var(--hairline);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+:root {
+  /* Real project tokens — do not rename. */
+  --ink: oklch(0.96 0.01 80);
+  --ink-muted: oklch(0.72 0.02 70);
+  --ink-dim: oklch(0.56 0.02 70);
+
+  --paper: oklch(0.16 0.012 55);        /* espresso base, not flat black */
+  --panel: oklch(0.21 0.014 55);        /* raised card surface */
+  --panel-2: oklch(0.25 0.016 55);      /* over-raised */
+  --hairline: oklch(0.32 0.012 55 / 0.6);
+
+  --accent: oklch(0.82 0.15 78);        /* warm gold */
+  --accent-strong: oklch(0.88 0.17 82); /* highlight gold */
+  --accent-dim: oklch(0.82 0.15 78 / 0.35);
+
+  --shadow-resting: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-raised: 0 8px 24px -8px oklch(0 0 0 / 0.55), 0 2px 6px oklch(0 0 0 / 0.35);
+  --shadow-floating: 0 24px 60px -16px oklch(0 0 0 / 0.65), 0 4px 12px oklch(0 0 0 / 0.4);
+  --glow-accent: 0 0 0 1px oklch(0.82 0.15 78 / 0.35),
+                 0 0 24px -4px oklch(0.82 0.15 78 / 0.45),
+                 0 0 48px -12px oklch(0.82 0.15 78 / 0.35);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 180ms;
+  --dur-base: 320ms;
+  --dur-slow: 640ms;
+
+  /* dApp migration: tokens the old frontend had that this file didn't -
+     added without renaming any of the ones already defined above. */
+  --danger: oklch(0.62 0.16 30);            /* warm red, same tone as the original --danger (#c1573d) */
+  --gap-carousel: 12px;                      /* spacing between the dApp Hero marquee's 3 rows */
+  --radius-panel: 1rem;                      /* same radius ("rounded-2xl") as UXSection's mockup box */
+
+  color-scheme: dark;
+}
+
+@layer base {
+  * { border-color: var(--hairline); }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* The Hero carousel uses the 100vw trick to reach edge to edge
+       (see .hero-carousels); that can create a 1px horizontal scrollbar
+       in some browsers. It's clipped here, not in the carousel itself. */
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--accent); color: var(--paper); }
+}
+
+/* Reveal on scroll — CSS only, one-shot via IntersectionObserver toggling data-visible */
+@utility reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity var(--dur-slow) var(--ease-out-expo),
+    transform var(--dur-slow) var(--ease-out-expo);
+  will-change: opacity, transform;
+}
+@utility reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@utility card-hover {
+  transition:
+    transform var(--dur-base) var(--ease-out-expo),
+    box-shadow var(--dur-base) var(--ease-out-expo),
+    border-color var(--dur-base) var(--ease-out-expo);
+}
+@utility card-hover-lift {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-floating);
+}
+
+@utility glow-ring {
+  box-shadow: var(--glow-accent);
+}
+
+@utility hairline-grid {
+  background-image:
+    linear-gradient(oklch(0.32 0.012 55 / 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.32 0.012 55 / 0.35) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 20%, black 30%, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}
+
+/* ============================================================
+   dApp (migrated from frontend/src/styles.css, docs/08_FRONTEND_MIGRATION.md)
+   Ported 1:1: same rules and original comments. The only real change is
+   variable NAMES, to reuse the tokens already defined above instead of
+   duplicating a parallel palette:
+     --line       -> --hairline
+     --ink-soft   -> --ink-muted
+     --font-display / --font-body -> --font-sans (this landing uses a single
+       type family; the old frontend's heading serif is dropped on purpose,
+       so the dApp's UI/UX is consistent with frontend2.0's new visual
+       direction, as Abraham requested).
+   ============================================================ */
+
+.app-shell {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--hairline);
+  padding: 1rem 1.25rem;
+}
+
+.app-header h1 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.6rem;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--accent-strong);
+}
+
+.brand-link {
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out-expo);
+}
+
+.brand-link:hover { color: var(--ink); }
+
+.view-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+/* Entry transition when switching views (list/detail/create): a fade +
+   slight shift, discreet and non-blocking. Reset via key={view.name}. */
+@keyframes view-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.view-fade {
+  animation: view-fade-in var(--dur-base) var(--ease-out-expo);
+}
+
+.wallet-box {
+  font-size: 0.85rem;
+  text-align: right;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--hairline);
+  background: var(--panel);
+  box-shadow: var(--shadow-raised);
+}
+
+.dapp-scope button {
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: 1px solid var(--accent-strong);
+  background: var(--accent);
+  color: var(--paper);
+  padding: 0.6rem 1.15rem;
+  border-radius: 0.65rem;
+  box-shadow: var(--shadow-resting);
+  transition: background var(--dur-fast) var(--ease-out-expo),
+              box-shadow var(--dur-fast) var(--ease-out-expo),
+              transform var(--dur-fast) var(--ease-out-expo);
+}
+
+.dapp-scope button:hover:not(:disabled) {
+  background: var(--accent-strong);
+  box-shadow: var(--glow-accent);
+}
+
+.dapp-scope button:active:not(:disabled) { transform: translateY(1px); }
+
+.dapp-scope button:disabled { opacity: 0.45; cursor: default; }
+
+.dapp-scope button.secondary {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: var(--hairline);
+  box-shadow: var(--shadow-resting);
+}
+
+.dapp-scope button.secondary:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--accent-strong);
+  border-color: var(--accent-strong);
+  box-shadow: var(--shadow-raised);
+}
+
+.dapp-scope button.danger {
+  background: var(--panel);
+  color: var(--danger);
+  border-color: var(--danger);
+  box-shadow: var(--shadow-resting);
+}
+
+.dapp-scope button.danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--ink);
+  box-shadow: var(--shadow-raised);
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.project-card {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  padding: 1.1rem;
+  background: var(--panel);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  box-shadow: var(--shadow-resting);
+  transition: transform var(--dur-base) var(--ease-out-expo),
+              box-shadow var(--dur-base) var(--ease-out-expo);
+}
+
+.project-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-floating);
+}
+
+.project-card-media {
+  aspect-ratio: 16 / 9;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-resting);
+}
+
+.project-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.project-card-media-fallback {
+  font-family: var(--font-sans);
+  font-size: 2.5rem;
+  color: var(--ink-muted);
+}
+
+.project-card h3 {
+  font-family: var(--font-sans);
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.progress-track {
+  height: 6px;
+  background: var(--hairline);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.progress-fill.success { background: var(--accent-strong); }
+
+.status-pill {
+  display: inline-block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  width: fit-content;
+}
+
+.status-pill.ok { color: var(--accent-strong); }
+.status-pill.pending { color: var(--ink-muted); }
+
+.detail-panel {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  padding: 1.5rem;
+  background: var(--panel);
+  box-shadow: var(--shadow-floating);
+}
+
+.detail-image {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: var(--radius-panel);
+  margin: 0.75rem 0;
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-resting);
+}
+
+.detail-description {
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+
+.empty-state, .error-state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--ink-muted);
+}
+
+.error-state { color: var(--danger); }
+
+/* The field title was moved "inside" the input via placeholder (low
+   opacity but legible, see ::placeholder below) instead of a separate
+   text line above it - saves a full row per field. The label no longer
+   has its own box (the input is already boxed): avoids duplicating border/background.
+   .file-select-button is excluded: that label works as a button (opens the
+   hidden file input), not as a form field. */
+.dapp-scope label:not(.file-select-button) {
+  display: block;
+  margin-bottom: 0;
+}
+
+/* Real field text for screen readers; visually hidden because the
+   placeholder already shows it inside the input (see JSX: <span class="sr-only">). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dapp-scope input, .dapp-scope textarea, .dapp-scope select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: 0.5rem;
+}
+
+.dapp-scope textarea {
+  resize: vertical;
+  max-height: 160px;
+}
+
+.dapp-scope input::placeholder, .dapp-scope textarea::placeholder {
+  color: var(--ink-dim);
+  opacity: 0.5;
+}
+
+.dapp-scope input:focus, .dapp-scope textarea:focus, .dapp-scope select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.create-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.7rem;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 560px;
+  padding: 1.1rem;
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--hairline);
+  background: var(--panel);
+  box-shadow: var(--shadow-floating);
+  /* Slides in from below the viewport to its final position. Only fires
+     on mount (React only mounts this form when entering the "create"
+     view), so it matches the real moment the user enters the section -
+     no IntersectionObserver needed. */
+  animation: create-form-slide-in 2s var(--ease-out-expo) both;
+}
+
+@keyframes create-form-slide-in {
+  from { transform: translateY(70vh); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.create-form input,
+.create-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.create-form > h2 {
+  grid-column: 1 / -1;
+  margin: 0 0 0.1rem;
+  font-size: 1.1rem;
+}
+
+.create-form .error-state {
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+.create-form > .error-state {
+  grid-column: 1 / -1;
+}
+
+.field-title,
+.field-document {
+  grid-column: 1;
+}
+
+.field-goal,
+.field-image {
+  grid-column: 2;
+}
+
+.field-description,
+.field-hint,
+.create-form .action-block,
+.create-form .tx-banner {
+  grid-column: 1 / -1;
+}
+
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.create-form .file-field {
+  padding: 0.6rem;
+  gap: 0.35rem;
+  margin-bottom: 0;
+}
+
+.file-field-hint {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.create-form .file-select-button {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.create-form .file-attachment-card {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.create-form .action-block {
+  margin-top: 0.15rem;
+  padding: 0.55rem;
+}
+
+.create-form .tx-banner {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .create-form {
+    grid-template-columns: 1fr;
+    padding: 0.9rem;
+    gap: 0.4rem;
+    max-width: 100%;
+  }
+  .field-title, .field-goal, .field-document, .field-image {
+    grid-column: 1;
+  }
+}
+
+.pledge-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--hairline);
+  background: var(--panel-2);
+  box-shadow: var(--shadow-floating);
+}
+
+.pledge-form input { flex: 1; }
+
+.action-block {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--hairline);
+  background: var(--panel-2);
+  box-shadow: var(--shadow-floating);
+}
+
+.tx-banner {
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+
+.tx-banner.success { color: var(--accent-strong); }
+.tx-banner.error { color: var(--danger); }
+.tx-banner.pending { color: var(--ink-muted); }
+
+.network-hint {
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  margin: 0 0 1rem;
+}
+
+.network-hint.error { color: var(--danger); }
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.file-input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.file-select-button {
+  display: inline-block;
+  width: fit-content;
+  margin: 0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid var(--ink);
+  border-radius: 0.65rem;
+  padding: 0.55rem 1.1rem;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: var(--shadow-resting);
+  transition: background var(--dur-fast) var(--ease-out-expo),
+              box-shadow var(--dur-fast) var(--ease-out-expo);
+}
+
+.file-select-button:hover {
+  background: var(--accent);
+  color: var(--paper);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-raised);
+}
+
+.file-selected-name {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+.file-field {
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius-panel);
+  padding: 1rem;
+  margin-bottom: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  background: var(--panel-2);
+  box-shadow: var(--shadow-resting);
+  transition: border-color var(--dur-fast) var(--ease-out-expo),
+              box-shadow var(--dur-fast) var(--ease-out-expo);
+}
+
+.file-field.is-drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-2));
+  box-shadow: var(--glow-accent);
+}
+
+.file-attachment-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.file-attachment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-attachment-size {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+}
+
+/* ============================================================
+   dApp Hero / marquee (distinct from the case-study Hero in
+   components/landing/Hero.tsx). Vanilla CSS on purpose, same as the old
+   frontend: custom visual content that gains nothing from utilities.
+   ============================================================ */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3rem;
+  min-height: calc(100dvh - 4.25rem);
+  padding: 2.5rem 1.25rem 4rem;
+  text-align: center;
+}
+
+.hero-copy {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hero-title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1.1;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+  color: var(--ink-muted);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.hero-carousels {
+  /* Full-bleed edge to edge: breaks out of the parent .hero's padding/max-width
+     by using the viewport (100vw) as reference instead of a fixed width, so
+     the carousel reaches the screen's real edges regardless of
+     size (desktop or mobile). Standard "full-bleed inside a centered
+     container" technique: works because .hero is full-width and centers its children. */
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-carousel);
+}
+
+.carousel-divider {
+  height: 2px;
+  background: #000;
+}
+
+.carousel-row {
+  overflow: hidden;
+  contain: layout paint;
+}
+
+.carousel-track {
+  display: flex;
+  gap: var(--gap-carousel);
+  width: max-content;
+  will-change: transform;
+}
+
+.carousel-row--static {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--gap-carousel);
+  overflow: visible;
+  contain: none;
+}
+
+.carousel-row--static .showcase-card {
+  width: 100%;
+}
+
+.showcase-card {
+  margin: 0;
+  flex: 0 0 auto;
+  width: 220px;
+  aspect-ratio: 4 / 3;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-resting);
+  transition: transform var(--dur-base) var(--ease-out-expo),
+              box-shadow var(--dur-base) var(--ease-out-expo);
+}
+
+.showcase-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.showcase-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: var(--shadow-raised);
+}
+
+.landing-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.landing-cta h2 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  :root { --gap-carousel: 8px; }
+  .showcase-card { width: 150px; }
+  .hero { gap: 2rem; padding: 1.5rem 1rem 3rem; }
+
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.85rem 1rem;
+  }
+  .app-header h1 { font-size: 1.3rem; }
+  .wallet-box { width: 100%; text-align: left; }
+
+  .app-shell { padding: 1.5rem 1rem 3rem; }
+  .detail-panel { padding: 1rem; }
+
+  .view-toolbar { flex-wrap: wrap; gap: 0.6rem; }
+
+  .pledge-form { flex-direction: column; align-items: stretch; }
+  .action-block { flex-wrap: wrap; }
+
+  .tx-toast-stack { left: 1rem; right: 1rem; max-width: none; }
+
+  .dapp-scope button { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel-track { will-change: auto; }
+}
+
+.tx-toast-stack {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 100;
+  max-width: 320px;
+}
+
+.tx-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  padding: 0.65rem 0.95rem;
+  border-radius: 0.75rem;
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-floating);
+}
+
+.tx-toast--success { border-color: var(--accent-strong); color: var(--accent-strong); }
+.tx-toast--error { border-color: var(--danger); color: var(--danger); }
+.tx-toast--pending, .tx-toast--confirming { color: var(--ink-muted); }
+
+.tx-toast button.secondary {
+  border: none;
+  padding: 0 0.25rem;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+

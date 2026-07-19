@@ -18,7 +18,9 @@ Nota de mantenimiento (fuente: comparativas de la comunidad, ver abajo): Wagmi h
 Elección: **Base** (rollup optimista sobre Ethereum, EVM-equivalente, gas muy bajo, buena adopción de wallets/tooling). Alternativas EVM-equivalentes válidas con el mismo código: Arbitrum, Optimism. Los límites de gas del cliente (350k / 120k) son cómodos en cualquiera de estas L2 pero **ajustados si algún día se quisiera deployar también en L1 mainnet** — el diseño de gas se hace pensando en el peor caso (L1) para que sea portable.
  
 ## 4. IPFS
-Metadata pesada de cada campaña (imagen, descripción larga, documentos) NO va on-chain (rompería el presupuesto de gas). Se sube a IPFS off-chain (Pinata/web3.storage) y solo el **CID (bytes32/string)** se guarda en el contrato. El contrato es la fuente de verdad de fondos; IPFS es solo presentación.
+Metadata pesada de cada campaña (imagen, descripción larga, documentos) NO va on-chain (rompería el presupuesto de gas). Se sube a IPFS off-chain (Pinata) y solo el **CID (bytes32/string)** se guarda en el contrato. El contrato es la fuente de verdad de fondos; IPFS es solo presentación.
+
+**Actualización (2026-07-10):** la subida a Pinata ya no ocurre directo desde el navegador. Se agregó `/backend` (Express minimo) que guarda el JWT de Pinata del lado del servidor y expone dos endpoints propios (`/api/pin-file`, `/api/pin-json`) al frontend. Motivo y detalle completo en `05_CRITICAL_REVIEW.md`. Esto no cambia la arquitectura de fondos (sigue siendo 100% on-chain); solo mueve dónde vive un secreto de un servicio de terceros.
  
 ## 5. Testing
 Hardhat + Chai + `hardhat-gas-reporter` para verificar en cada test que `createProject` y `pledge` no superan 350k/120k gas — esto convierte las restricciones del cliente en un test automatizado, no en una promesa.
