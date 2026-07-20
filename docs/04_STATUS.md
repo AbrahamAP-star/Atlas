@@ -252,6 +252,45 @@ Resumen:
   direccion (`0xb76d8fE65b68C80c71d0494Ba69E2874EdA7Ba6b`, redeploy
   2026-07-16). `frontend2.0/.env` se creo con ese mismo valor, consistente.
 
+## Sesion 2026-07-19 (4): CI en verde — causa raiz real del fallo de `frontend2.0`
+
+Tras 3 rondas de fixes (Node 20→22/24 en los 3 jobs, YAML invalido por `: ` sin
+comillas, y el lockfile de `frontend2.0`), CI quedó en verde: `contracts` (Node
+22/24) y `frontend` (Node 22/24) pasan, `gas-report` corre y comenta en PRs
+(se ve "skipped" en pushes directos a `main`, es el comportamiento esperado
+— solo corre en `pull_request`).
+
+**Causa raiz real del error de lockfile (no la que se penso al principio):**
+no era un problema de "el push no llego a GitHub" — el archivo si llegaba,
+pero estaba mal generado. `nitro@3.0.260603-beta` (dependencia beta de
+`@tanstack/react-start` para SSR, viene del scaffold de Lovable, no se toco)
+arrastra `unstorage`, que declara `lru-cache` como **peer dependency
+opcional**. Regenerar el lockfile con `npm install --package-lock-only` (sin
+instalar `node_modules` real) resuelve mal esa relacion peer-opcional —
+comportamiento inconsistente conocido de ese modo de npm. Confirmado
+reproduciendo `npm ci` en un entorno limpio contra el `package.json`/
+`package-lock.json` reales de GitHub (log de debug de npm: `placeDep
+node_modules/nitro lru-cache@11.5.2 OK for: unstorage@2.0.0-alpha.7 want:
+^11.2.6`, entrada nunca escrita completa en el lockfile generado con
+`--package-lock-only`).
+
+**Fix real:** `cd frontend2.0 && rm -rf node_modules package-lock.json && npm
+install` (instalacion completa, no `--package-lock-only`) — validado de
+punta a punta: `npm ci` limpio despues, 524 paquetes, 0 errores.
+
+**Hallazgo aparte, ya corregido:** `frontend2.0/gitignore` (scaffold de
+Lovable) no tenía el punto inicial — git nunca lo leyo, así que
+`node_modules` de ese paquete no estaba siendo ignorado por git desde que se
+creo `frontend2.0` (2026-07-17). Renombrado a `.gitignore`.
+
+**Riesgo residual documentado (no bloqueante, no accionado ahora):** `nitro`
+es beta y esta fijado sin `^` (correcto), pero el resto de dependencias del
+scaffold de Lovable en `frontend2.0/package.json` usa `^` — inconsistente con
+la convencion propia del proyecto ("versiones exactas, sin `^`", ver mas
+arriba en este archivo). No se toco por ser scaffold de Lovable no pedido a
+modificar; queda documentado por si el lockfile necesita regenerarse de cero
+en el futuro y vuelve a aparecer el mismo tipo de error.
+
 ## Punto de partida para Fase 6
 No iniciar hasta que Abraham de el visto bueno explicito (regla del proyecto: no avanzar de fase sin autorizacion). Checklist en `03_PLAN_FASES.md` «Fase 6»: deploy en mainnet de Base, README para usuario final, documentacion tecnica final.
 
