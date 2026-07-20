@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
 /** One-shot IntersectionObserver — sets data-visible on the element. */
-export function useReveal<T extends HTMLElement = HTMLDivElement>(threshold = 0.15) {
+export function useReveal<T extends HTMLElement = HTMLDivElement>(
+  threshold = 0.15,
+) {
   const ref = useRef<T | null>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {

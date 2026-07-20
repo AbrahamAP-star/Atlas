@@ -13,7 +13,8 @@ interface Props {
 
 export function ProjectCard({ id, project, onSelect }: Props) {
   const status = getProjectStatus(project);
-  const pct = project.goal > 0n ? Number((project.pledged * 100n) / project.goal) : 0;
+  const pct =
+    project.goal > 0n ? Number((project.pledged * 100n) / project.goal) : 0;
   const { metadata, imageUrl } = useProjectMetadata(project.metadataCID);
 
   return (

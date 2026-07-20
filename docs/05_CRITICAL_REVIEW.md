@@ -11,6 +11,16 @@
 ## Recomendación de mi parte (no pedida explícitamente, mejora la propuesta)
 Añadir a Fase 2 un test específico de "grief" donde un mismo backer hace pledge 0 repetidamente para ver si algún evento o cálculo se rompe con montos cero — no cuesta nada y cierra un vector de confusión de UX/logs.
 
+## Bug real encontrado y corregido (2026-07-20): `TxWatcher` perdia el nombre de error decodificado por eth_call replay
+
+Detectado escribiendo `context/TxTrackerContext.test.tsx` (punto 4 de `09_ROADMAP_MEJORAS.md`), no por inspeccion manual del codigo — el test con mocks asincronos reales (`mockRejectedValue`) expuso una condicion de carrera invisible leyendo el codigo en estatico.
+
+**El bug:** `TxWatcher` resolvia el estado `"error"` en **dos pasadas**: una inmediata con el mensaje generico de `toReadableError` (antes de que terminara el replay de `eth_call`), y una segunda cuando el replay decodificaba el nombre real del error custom. El problema es que `TxTrackerProvider` solo mantiene montado un `TxWatcher` mientras el status del hash sea `"confirming"`/`"pending"` (`unresolvedHashes`). En cuanto la **primera** pasada ponia el status en `"error"`, el hash salia de esa lista y React desmontaba el `TxWatcher` en el siguiente render — el cleanup marcaba `cancelled = true` **antes** de que la promesa real de `eth_call` (un round-trip de red, cientos de ms en produccion) llegara a resolver. Resultado: el nombre de error decodificado nunca se aplicaba, y el usuario siempre veia el mensaje generico de `toReadableError` (`error.shortMessage`) en vez del mapeo legible de `errorMessages` (ej. "El proyecto ya fue reclamado" en vez del shortMessage crudo de viem). La funcionalidad de replay documentada en "Key learnings" ("Mined revert decoding requires eth_call replay") estaba efectivamente muerta para cualquier error real.
+
+**Fix:** se consolidaron los dos `useEffect`/dos llamadas a `onResolve` en uno solo: ahora el intento de replay se espera (`await`) **antes** de llamar a `onResolve("error", ...)`, asi que el status del hash pasa de `"confirming"` directo al mensaje final ya correcto, sin un paso intermedio que dispare el desmontaje prematuro. Se elimino el estado local `replayedErrorName` (ya no hace falta, todo el calculo vive dentro de la misma funcion async). Mismo comportamiento observable en el resto de casos (success/pending/confirming), sin cambios.
+
+**Como se detecto:** el primer intento de `resolves to a readable error via eth_call replay...` en `TxTrackerContext.test.tsx` fallaba con el mensaje generico en vez del especifico, incluso esperando con `waitFor` (timeout de 1s). Investigando el porque (no solo ajustando el test para que "pasara"), se rastreo la causa hasta el desmontaje prematuro descrito arriba — confirmado corrigiendo el codigo fuente, no el test.
+
 ## Bugs encontrados y corregidos al implementar Fase 1 (2026-07-05)
 Esta spec, aunque sólida en el diseño general, tenía huecos concretos que solo aparecieron al escribir el código real:
 

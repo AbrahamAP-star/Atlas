@@ -24,10 +24,17 @@ const decisions = [
 
 export function ArchitectureDecisions() {
   return (
-    <section id="decisiones" className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+    <section
+      id="decisiones"
+      className="relative border-t"
+      style={{ borderColor: "var(--hairline)" }}
+    >
       <div className="mx-auto max-w-6xl px-6 py-28">
         <Reveal>
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
+          <p
+            className="text-xs uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             Architecture decisions
           </p>
         </Reveal>
@@ -42,9 +49,15 @@ export function ArchitectureDecisions() {
             <Reveal key={d.title} delay={i * 70} as="li">
               <div
                 className="h-full rounded-2xl border p-6 card-hover hover:card-hover-lift"
-                style={{ background: "var(--panel)", borderColor: "var(--hairline)" }}
+                style={{
+                  background: "var(--panel)",
+                  borderColor: "var(--hairline)",
+                }}
               >
-                <h3 className="text-base font-semibold" style={{ color: "var(--accent-strong)" }}>
+                <h3
+                  className="text-base font-semibold"
+                  style={{ color: "var(--accent-strong)" }}
+                >
                   {d.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-[color:var(--ink-muted)]">

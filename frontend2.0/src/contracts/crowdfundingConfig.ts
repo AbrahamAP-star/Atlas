@@ -10,8 +10,10 @@ import { wagmiConfig } from "@/wagmi";
 // Deployed address by chain id. Sepolia already has a real deploy (see
 // /deployments/sepolia.json); Base Sepolia is still pending funds (Phase 3).
 export const crowdfundingAddresses: Record<number, Address | undefined> = {
-  [sepolia.id]: import.meta.env.VITE_CROWDFUNDING_ADDRESS_SEPOLIA as Address | undefined,
-  [baseSepolia.id]: import.meta.env.VITE_CROWDFUNDING_ADDRESS_BASE_SEPOLIA as Address | undefined,
+  [sepolia.id]: import.meta.env.VITE_CROWDFUNDING_ADDRESS_SEPOLIA as
+    Address | undefined,
+  [baseSepolia.id]: import.meta.env.VITE_CROWDFUNDING_ADDRESS_BASE_SEPOLIA as
+    Address | undefined,
 };
 
 export function getCrowdfundingAddress(chainId: number): Address | undefined {
@@ -24,7 +26,10 @@ const explorerBaseUrls: Record<number, string> = {
   [baseSepolia.id]: "https://sepolia.basescan.org",
 };
 
-export function getExplorerTxUrl(chainId: number, hash: string): string | undefined {
+export function getExplorerTxUrl(
+  chainId: number,
+  hash: string,
+): string | undefined {
   const base = explorerBaseUrls[chainId];
   return base ? `${base}/tx/${hash}` : undefined;
 }
@@ -35,9 +40,12 @@ export { crowdfundingAbi };
 export const supportedChains = wagmiConfig.chains;
 
 // Only the supported networks where the contract DOES have a deployed address.
-export const deployedChains = supportedChains.filter((chain) => !!crowdfundingAddresses[chain.id]);
+export const deployedChains = supportedChains.filter(
+  (chain) => !!crowdfundingAddresses[chain.id],
+);
 
 // Network used for read-only mode before connecting a wallet: the first
 // supported network that already has the contract deployed (avoids
 // defaulting to a network without a deploy just because it's first in the chains array).
-export const defaultReadChainId = deployedChains[0]?.id ?? supportedChains[0].id;
+export const defaultReadChainId =
+  deployedChains[0]?.id ?? supportedChains[0].id;

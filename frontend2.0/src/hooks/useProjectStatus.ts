@@ -14,8 +14,18 @@ export function useProjectStatus(id: number) {
 
   const { data, isLoading, refetch } = useReadContracts({
     contracts: [
-      { address, abi: crowdfundingAbi, functionName: "isSuccessful", args: [BigInt(id)] },
-      { address, abi: crowdfundingAbi, functionName: "pledgeOf", args: [BigInt(id), account ?? zeroAddress] },
+      {
+        address,
+        abi: crowdfundingAbi,
+        functionName: "isSuccessful",
+        args: [BigInt(id)],
+      },
+      {
+        address,
+        abi: crowdfundingAbi,
+        functionName: "pledgeOf",
+        args: [BigInt(id), account ?? zeroAddress],
+      },
     ],
     query: { enabled: !!address },
   });

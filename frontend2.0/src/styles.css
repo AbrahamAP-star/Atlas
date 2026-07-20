@@ -38,7 +38,8 @@
   --color-destructive-foreground: var(--ink);
   --color-input: var(--hairline);
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --radius-sm: 6px;
@@ -53,21 +54,24 @@
   --ink-muted: oklch(0.72 0.02 70);
   --ink-dim: oklch(0.56 0.02 70);
 
-  --paper: oklch(0.16 0.012 55);        /* espresso base, not flat black */
-  --panel: oklch(0.21 0.014 55);        /* raised card surface */
-  --panel-2: oklch(0.25 0.016 55);      /* over-raised */
+  --paper: oklch(0.16 0.012 55); /* espresso base, not flat black */
+  --panel: oklch(0.21 0.014 55); /* raised card surface */
+  --panel-2: oklch(0.25 0.016 55); /* over-raised */
   --hairline: oklch(0.32 0.012 55 / 0.6);
 
-  --accent: oklch(0.82 0.15 78);        /* warm gold */
+  --accent: oklch(0.82 0.15 78); /* warm gold */
   --accent-strong: oklch(0.88 0.17 82); /* highlight gold */
   --accent-dim: oklch(0.82 0.15 78 / 0.35);
 
   --shadow-resting: 0 1px 2px oklch(0 0 0 / 0.4);
-  --shadow-raised: 0 8px 24px -8px oklch(0 0 0 / 0.55), 0 2px 6px oklch(0 0 0 / 0.35);
-  --shadow-floating: 0 24px 60px -16px oklch(0 0 0 / 0.65), 0 4px 12px oklch(0 0 0 / 0.4);
-  --glow-accent: 0 0 0 1px oklch(0.82 0.15 78 / 0.35),
-                 0 0 24px -4px oklch(0.82 0.15 78 / 0.45),
-                 0 0 48px -12px oklch(0.82 0.15 78 / 0.35);
+  --shadow-raised:
+    0 8px 24px -8px oklch(0 0 0 / 0.55), 0 2px 6px oklch(0 0 0 / 0.35);
+  --shadow-floating:
+    0 24px 60px -16px oklch(0 0 0 / 0.65), 0 4px 12px oklch(0 0 0 / 0.4);
+  --glow-accent:
+    0 0 0 1px oklch(0.82 0.15 78 / 0.35),
+    0 0 24px -4px oklch(0.82 0.15 78 / 0.45),
+    0 0 48px -12px oklch(0.82 0.15 78 / 0.35);
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -77,17 +81,23 @@
 
   /* dApp migration: tokens the old frontend had that this file didn't -
      added without renaming any of the ones already defined above. */
-  --danger: oklch(0.62 0.16 30);            /* warm red, same tone as the original --danger (#c1573d) */
-  --gap-carousel: 12px;                      /* spacing between the dApp Hero marquee's 3 rows */
-  --radius-panel: 1rem;                      /* same radius ("rounded-2xl") as UXSection's mockup box */
+  --danger: oklch(
+    0.62 0.16 30
+  ); /* warm red, same tone as the original --danger (#c1573d) */
+  --gap-carousel: 12px; /* spacing between the dApp Hero marquee's 3 rows */
+  --radius-panel: 1rem; /* same radius ("rounded-2xl") as UXSection's mockup box */
 
   color-scheme: dark;
 }
 
 @layer base {
-  * { border-color: var(--hairline); }
+  * {
+    border-color: var(--hairline);
+  }
 
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+  }
 
   body {
     background-color: var(--paper);
@@ -101,7 +111,10 @@
     overflow-x: hidden;
   }
 
-  ::selection { background: var(--accent); color: var(--paper); }
+  ::selection {
+    background: var(--accent);
+    color: var(--paper);
+  }
 }
 
 /* Reveal on scroll — CSS only, one-shot via IntersectionObserver toggling data-visible */
@@ -142,12 +155,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  .reveal { opacity: 1 !important; transform: none !important; }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* ============================================================
@@ -191,7 +209,9 @@
   transition: color var(--dur-fast) var(--ease-out-expo);
 }
 
-.brand-link:hover { color: var(--ink); }
+.brand-link:hover {
+  color: var(--ink);
+}
 
 .view-toolbar {
   display: flex;
@@ -203,8 +223,14 @@
 /* Entry transition when switching views (list/detail/create): a fade +
    slight shift, discreet and non-blocking. Reset via key={view.name}. */
 @keyframes view-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .view-fade {
@@ -231,9 +257,10 @@
   padding: 0.6rem 1.15rem;
   border-radius: 0.65rem;
   box-shadow: var(--shadow-resting);
-  transition: background var(--dur-fast) var(--ease-out-expo),
-              box-shadow var(--dur-fast) var(--ease-out-expo),
-              transform var(--dur-fast) var(--ease-out-expo);
+  transition:
+    background var(--dur-fast) var(--ease-out-expo),
+    box-shadow var(--dur-fast) var(--ease-out-expo),
+    transform var(--dur-fast) var(--ease-out-expo);
 }
 
 .dapp-scope button:hover:not(:disabled) {
@@ -241,9 +268,14 @@
   box-shadow: var(--glow-accent);
 }
 
-.dapp-scope button:active:not(:disabled) { transform: translateY(1px); }
+.dapp-scope button:active:not(:disabled) {
+  transform: translateY(1px);
+}
 
-.dapp-scope button:disabled { opacity: 0.45; cursor: default; }
+.dapp-scope button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 
 .dapp-scope button.secondary {
   background: var(--panel);
@@ -288,8 +320,9 @@
   flex-direction: column;
   gap: 0.6rem;
   box-shadow: var(--shadow-resting);
-  transition: transform var(--dur-base) var(--ease-out-expo),
-              box-shadow var(--dur-base) var(--ease-out-expo);
+  transition:
+    transform var(--dur-base) var(--ease-out-expo),
+    box-shadow var(--dur-base) var(--ease-out-expo);
 }
 
 .project-card:hover {
@@ -340,7 +373,9 @@
   background: var(--accent);
 }
 
-.progress-fill.success { background: var(--accent-strong); }
+.progress-fill.success {
+  background: var(--accent-strong);
+}
 
 .status-pill {
   display: inline-block;
@@ -353,8 +388,12 @@
   width: fit-content;
 }
 
-.status-pill.ok { color: var(--accent-strong); }
-.status-pill.pending { color: var(--ink-muted); }
+.status-pill.ok {
+  color: var(--accent-strong);
+}
+.status-pill.pending {
+  color: var(--ink-muted);
+}
 
 .detail-panel {
   border: 1px solid var(--hairline);
@@ -379,13 +418,16 @@
   line-height: 1.5;
 }
 
-.empty-state, .error-state {
+.empty-state,
+.error-state {
   padding: 2rem;
   text-align: center;
   color: var(--ink-muted);
 }
 
-.error-state { color: var(--danger); }
+.error-state {
+  color: var(--danger);
+}
 
 /* The field title was moved "inside" the input via placeholder (low
    opacity but legible, see ::placeholder below) instead of a separate
@@ -412,7 +454,9 @@
   border: 0;
 }
 
-.dapp-scope input, .dapp-scope textarea, .dapp-scope select {
+.dapp-scope input,
+.dapp-scope textarea,
+.dapp-scope select {
   font-family: inherit;
   font-size: 0.9rem;
   padding: 0.5rem 0.65rem;
@@ -427,12 +471,15 @@
   max-height: 160px;
 }
 
-.dapp-scope input::placeholder, .dapp-scope textarea::placeholder {
+.dapp-scope input::placeholder,
+.dapp-scope textarea::placeholder {
   color: var(--ink-dim);
   opacity: 0.5;
 }
 
-.dapp-scope input:focus, .dapp-scope textarea:focus, .dapp-scope select:focus {
+.dapp-scope input:focus,
+.dapp-scope textarea:focus,
+.dapp-scope select:focus {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -457,8 +504,14 @@
 }
 
 @keyframes create-form-slide-in {
-  from { transform: translateY(70vh); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(70vh);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .create-form input,
@@ -545,7 +598,10 @@
     gap: 0.4rem;
     max-width: 100%;
   }
-  .field-title, .field-goal, .field-document, .field-image {
+  .field-title,
+  .field-goal,
+  .field-document,
+  .field-image {
     grid-column: 1;
   }
 }
@@ -562,7 +618,9 @@
   box-shadow: var(--shadow-floating);
 }
 
-.pledge-form input { flex: 1; }
+.pledge-form input {
+  flex: 1;
+}
 
 .action-block {
   display: flex;
@@ -581,9 +639,15 @@
   margin: 0.5rem 0 0;
 }
 
-.tx-banner.success { color: var(--accent-strong); }
-.tx-banner.error { color: var(--danger); }
-.tx-banner.pending { color: var(--ink-muted); }
+.tx-banner.success {
+  color: var(--accent-strong);
+}
+.tx-banner.error {
+  color: var(--danger);
+}
+.tx-banner.pending {
+  color: var(--ink-muted);
+}
 
 .network-hint {
   font-size: 0.85rem;
@@ -591,7 +655,9 @@
   margin: 0 0 1rem;
 }
 
-.network-hint.error { color: var(--danger); }
+.network-hint.error {
+  color: var(--danger);
+}
 
 .field-hint {
   font-size: 0.8rem;
@@ -623,8 +689,9 @@
   background: transparent;
   color: var(--ink);
   box-shadow: var(--shadow-resting);
-  transition: background var(--dur-fast) var(--ease-out-expo),
-              box-shadow var(--dur-fast) var(--ease-out-expo);
+  transition:
+    background var(--dur-fast) var(--ease-out-expo),
+    box-shadow var(--dur-fast) var(--ease-out-expo);
 }
 
 .file-select-button:hover {
@@ -651,8 +718,9 @@
   color: var(--ink-muted);
   background: var(--panel-2);
   box-shadow: var(--shadow-resting);
-  transition: border-color var(--dur-fast) var(--ease-out-expo),
-              box-shadow var(--dur-fast) var(--ease-out-expo);
+  transition:
+    border-color var(--dur-fast) var(--ease-out-expo),
+    box-shadow var(--dur-fast) var(--ease-out-expo);
 }
 
 .file-field.is-drag-over {
@@ -786,8 +854,9 @@
   background: var(--paper);
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-resting);
-  transition: transform var(--dur-base) var(--ease-out-expo),
-              box-shadow var(--dur-base) var(--ease-out-expo);
+  transition:
+    transform var(--dur-base) var(--ease-out-expo),
+    box-shadow var(--dur-base) var(--ease-out-expo);
 }
 
 .showcase-card img {
@@ -818,9 +887,16 @@
 }
 
 @media (max-width: 640px) {
-  :root { --gap-carousel: 8px; }
-  .showcase-card { width: 150px; }
-  .hero { gap: 2rem; padding: 1.5rem 1rem 3rem; }
+  :root {
+    --gap-carousel: 8px;
+  }
+  .showcase-card {
+    width: 150px;
+  }
+  .hero {
+    gap: 2rem;
+    padding: 1.5rem 1rem 3rem;
+  }
 
   .app-header {
     flex-direction: column;
@@ -828,24 +904,49 @@
     gap: 0.6rem;
     padding: 0.85rem 1rem;
   }
-  .app-header h1 { font-size: 1.3rem; }
-  .wallet-box { width: 100%; text-align: left; }
+  .app-header h1 {
+    font-size: 1.3rem;
+  }
+  .wallet-box {
+    width: 100%;
+    text-align: left;
+  }
 
-  .app-shell { padding: 1.5rem 1rem 3rem; }
-  .detail-panel { padding: 1rem; }
+  .app-shell {
+    padding: 1.5rem 1rem 3rem;
+  }
+  .detail-panel {
+    padding: 1rem;
+  }
 
-  .view-toolbar { flex-wrap: wrap; gap: 0.6rem; }
+  .view-toolbar {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
 
-  .pledge-form { flex-direction: column; align-items: stretch; }
-  .action-block { flex-wrap: wrap; }
+  .pledge-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .action-block {
+    flex-wrap: wrap;
+  }
 
-  .tx-toast-stack { left: 1rem; right: 1rem; max-width: none; }
+  .tx-toast-stack {
+    left: 1rem;
+    right: 1rem;
+    max-width: none;
+  }
 
-  .dapp-scope button { min-height: 44px; }
+  .dapp-scope button {
+    min-height: 44px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .carousel-track { will-change: auto; }
+  .carousel-track {
+    will-change: auto;
+  }
 }
 
 .tx-toast-stack {
@@ -871,9 +972,18 @@
   box-shadow: var(--shadow-floating);
 }
 
-.tx-toast--success { border-color: var(--accent-strong); color: var(--accent-strong); }
-.tx-toast--error { border-color: var(--danger); color: var(--danger); }
-.tx-toast--pending, .tx-toast--confirming { color: var(--ink-muted); }
+.tx-toast--success {
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+}
+.tx-toast--error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.tx-toast--pending,
+.tx-toast--confirming {
+  color: var(--ink-muted);
+}
 
 .tx-toast button.secondary {
   border: none;
@@ -881,4 +991,3 @@
   font-size: 0.9rem;
   line-height: 1;
 }
-

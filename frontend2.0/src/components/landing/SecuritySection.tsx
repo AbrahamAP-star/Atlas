@@ -5,41 +5,43 @@ const items = [
   {
     icon: ShieldCheck,
     title: "Two-layer reentrancy protection",
-    body:
-      "Checks-effects-interactions pattern plus a transient guard on every fund-moving function. It's the defense against the most common attack on contracts holding money.",
+    body: "Checks-effects-interactions pattern plus a transient guard on every fund-moving function. It's the defense against the most common attack on contracts holding money.",
   },
   {
     icon: LockKeyhole,
     title: "No admin, no rug pull possible by design",
-    body:
-      "There's no function that pauses, freezes, or redirects withdrawals. Not even the author can touch another user's funds.",
+    body: "There's no function that pauses, freezes, or redirects withdrawals. Not even the author can touch another user's funds.",
   },
   {
     icon: Ruler,
     title: "Amounts with safe conversions",
-    body:
-      "Numeric types sized to the real range (uint96) and SafeCast on every conversion: no value is ever truncated silently.",
+    body: "Numeric types sized to the real range (uint96) and SafeCast on every conversion: no value is ever truncated silently.",
   },
   {
     icon: Radio,
     title: "Typed errors and events on every action",
-    body:
-      "Custom errors instead of raw reverts, and on-chain events for full traceability from any indexer.",
+    body: "Custom errors instead of raw reverts, and on-chain events for full traceability from any indexer.",
   },
   {
     icon: Trash2,
     title: "Protected project deletion",
-    body:
-      "A creator can only delete their campaign if there are no third-party funds at risk — never at a backer's expense.",
+    body: "A creator can only delete their campaign if there are no third-party funds at risk — never at a backer's expense.",
   },
 ];
 
 export function SecuritySection() {
   return (
-    <section id="seguridad" className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+    <section
+      id="seguridad"
+      className="relative border-t"
+      style={{ borderColor: "var(--hairline)" }}
+    >
       <div className="mx-auto max-w-6xl px-6 py-28">
         <Reveal>
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
+          <p
+            className="text-xs uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             Security
           </p>
         </Reveal>
@@ -54,7 +56,10 @@ export function SecuritySection() {
             <Reveal key={it.title} delay={i * 70} as="li">
               <div
                 className="flex h-full gap-4 rounded-2xl border p-6 card-hover hover:card-hover-lift"
-                style={{ background: "var(--panel)", borderColor: "var(--hairline)" }}
+                style={{
+                  background: "var(--panel)",
+                  borderColor: "var(--hairline)",
+                }}
               >
                 <div
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"

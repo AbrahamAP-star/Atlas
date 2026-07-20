@@ -15,7 +15,9 @@ export function LandingCTA({ onCreate, canCreate }: Props) {
       <Button size="lg" onClick={onCreate} disabled={!canCreate}>
         Create project <ArrowRight size={18} aria-hidden="true" />
       </Button>
-      {!canCreate && <p className="field-hint">Connect your wallet to create a project.</p>}
+      {!canCreate && (
+        <p className="field-hint">Connect your wallet to create a project.</p>
+      )}
     </div>
   );
 }

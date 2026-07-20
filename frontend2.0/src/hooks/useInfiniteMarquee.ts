@@ -41,7 +41,7 @@ export function useInfiniteMarquee<T extends HTMLElement>({
       const tween = gsap.fromTo(
         track,
         { xPercent: from },
-        { xPercent: to, duration, ease: "none", repeat: -1 }
+        { xPercent: to, duration, ease: "none", repeat: -1 },
       );
 
       // Pauses the timeline when the Hero leaves the viewport (avoids wasting
@@ -51,13 +51,13 @@ export function useInfiniteMarquee<T extends HTMLElement>({
       // (KISS, see docs/06_FRONTEND_VISUAL_UPGRADE.md).
       const io = new IntersectionObserver(
         ([entry]) => (entry.isIntersecting ? tween.play() : tween.pause()),
-        { threshold: 0 }
+        { threshold: 0 },
       );
       io.observe(row);
 
       return () => io.disconnect();
     },
-    { scope: rowRef, dependencies: [direction, speedPxPerSecond] }
+    { scope: rowRef, dependencies: [direction, speedPxPerSecond] },
   );
 
   return { rowRef, trackRef };

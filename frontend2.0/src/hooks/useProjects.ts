@@ -57,7 +57,11 @@ export function useProjects() {
 
   const projects: { id: number; project: Project }[] =
     data
-      ?.map((result, id) => (result.status === "success" ? { id, project: toProject(result.result) } : null))
+      ?.map((result, id) =>
+        result.status === "success"
+          ? { id, project: toProject(result.result) }
+          : null,
+      )
       // A deleted project (deleteProject) leaves `creator == address(0)`: it's
       // filtered out of the listing instead of shown as a "ghost project" with no real data.
       .filter(
@@ -65,7 +69,11 @@ export function useProjects() {
           entry !== null && entry.project.creator !== ZERO_ADDRESS,
       ) ?? [];
 
-  return { projects, isLoading: loadingCount || loadingProjects, contractAddress: address };
+  return {
+    projects,
+    isLoading: loadingCount || loadingProjects,
+    contractAddress: address,
+  };
 }
 
 /** Reads a single project by id (used in the detail view). */

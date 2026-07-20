@@ -59,7 +59,8 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
   const [goalEth, setGoalEth] = useState("");
 
   const { upload, isUploading, error: uploadError } = usePinataUpload();
-  const { createProject, status, errorMessage, hash } = useCreateProject(address);
+  const { createProject, status, errorMessage, hash } =
+    useCreateProject(address);
 
   useEffect(() => {
     if (status === "success") {
@@ -125,7 +126,9 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
     // Safe reference to `window.document` (the real DOM): only possible
     // because the local state is no longer called `document` and doesn't
     // shadow it.
-    const input = window.document.getElementById("document-upload") as HTMLInputElement | null;
+    const input = window.document.getElementById(
+      "document-upload",
+    ) as HTMLInputElement | null;
     if (input) input.value = "";
   }
 
@@ -201,16 +204,26 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
     createProject(parseEther(goalEth), cid);
   }
 
-  const isBusy = isUploading || isExtractingText || status === "pending" || status === "confirming";
+  const isBusy =
+    isUploading ||
+    isExtractingText ||
+    status === "pending" ||
+    status === "confirming";
 
   return (
     <form className="create-form" onSubmit={handleSubmit}>
       <h2>Create project</h2>
       {network.kind === "unsupported-chain" && (
-        <p className="error-state">Unsupported network. Switch to: {network.supportedChainNames.join(", ")}.</p>
+        <p className="error-state">
+          Unsupported network. Switch to:{" "}
+          {network.supportedChainNames.join(", ")}.
+        </p>
       )}
       {network.kind === "not-deployed" && (
-        <p className="error-state">This network doesn't have the contract deployed yet. Switch to: {network.deployedChainNames.join(", ")}.</p>
+        <p className="error-state">
+          This network doesn't have the contract deployed yet. Switch to:{" "}
+          {network.deployedChainNames.join(", ")}.
+        </p>
       )}
 
       {/* Field title moved "inside" the input via placeholder (low opacity
@@ -219,7 +232,12 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
           <span className="sr-only"> keeps the label accessible. */}
       <label className="field-title">
         <span className="sr-only">Title</span>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" required />
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+          required
+        />
       </label>
       <label className="field-goal">
         <span className="sr-only">Minimum goal to allow withdrawal (ETH)</span>
@@ -253,7 +271,9 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDocumentDrop}
       >
-        <span className="file-field-hint">Document (PDF/.txt, optional) — drag it here</span>
+        <span className="file-field-hint">
+          Document (PDF/.txt, optional) — drag it here
+        </span>
         <input
           type="file"
           id="document-upload"
@@ -261,7 +281,10 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
           accept=".pdf,.txt,application/pdf,text/plain"
           onChange={handleDocumentChange}
         />
-        <label htmlFor="document-upload" className="secondary file-select-button">
+        <label
+          htmlFor="document-upload"
+          className="secondary file-select-button"
+        >
           📎 Attach document
         </label>
         {/* A single attachment card for both PDF and .txt: for .txt, its
@@ -272,8 +295,12 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
           <div className="file-attachment-card">
             <span aria-hidden="true">📄</span>
             <span className="file-attachment-name">{attachmentFile.name}</span>
-            <span className="file-attachment-size">{formatFileSize(attachmentFile.size)}</span>
-            <button type="button" className="secondary" onClick={clearDocument}>Remove</button>
+            <span className="file-attachment-size">
+              {formatFileSize(attachmentFile.size)}
+            </span>
+            <button type="button" className="secondary" onClick={clearDocument}>
+              Remove
+            </button>
           </div>
         )}
         {documentError && <p className="error-state">{documentError}</p>}
@@ -301,12 +328,20 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
           afterward if they still haven't withdrawn, the project keeps
           accepting pledges. */}
       <p className="field-hint">
-        No closing date: it keeps receiving pledges until you withdraw the funds.
+        No closing date: it keeps receiving pledges until you withdraw the
+        funds.
       </p>
 
       <div className="action-block">
-        <button type="submit" disabled={!isConnected || !network.canInteract || isBusy}>
-          {isUploading ? "Uploading to IPFS…" : isExtractingText ? "Reading file…" : "Create project"}
+        <button
+          type="submit"
+          disabled={!isConnected || !network.canInteract || isBusy}
+        >
+          {isUploading
+            ? "Uploading to IPFS…"
+            : isExtractingText
+              ? "Reading file…"
+              : "Create project"}
         </button>
         <button
           type="button"
@@ -322,7 +357,11 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
       </div>
 
       {uploadError && <p className="error-state">{uploadError}</p>}
-      <TransactionStatus status={status} errorMessage={errorMessage} hash={hash} />
+      <TransactionStatus
+        status={status}
+        errorMessage={errorMessage}
+        hash={hash}
+      />
     </form>
   );
 }

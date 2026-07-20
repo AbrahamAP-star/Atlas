@@ -11,7 +11,12 @@ import { useDeleteProject } from "@/hooks/useDeleteProject";
 import { PledgeForm } from "./PledgeForm";
 import { TransactionStatus } from "./TransactionStatus";
 import { playBackSound, playDeleteSound } from "@/lib/sounds";
-import { canPledgeProject, canClaimProject, canRefundProject, canDeleteProject } from "@/lib/projectPermissions";
+import {
+  canPledgeProject,
+  canClaimProject,
+  canRefundProject,
+  canDeleteProject,
+} from "@/lib/projectPermissions";
 
 // Migrated 1:1 from frontend/src/components/ProjectDetail.tsx (docs/08_FRONTEND_MIGRATION.md).
 
@@ -22,7 +27,9 @@ interface Props {
 
 export function ProjectDetail({ id, onBack }: Props) {
   const { project, isLoading, error, refetch: refetchProject } = useProject(id);
-  const { metadata, imageUrl, documentUrl } = useProjectMetadata(project?.metadataCID);
+  const { metadata, imageUrl, documentUrl } = useProjectMetadata(
+    project?.metadataCID,
+  );
   const { address: account } = useAccount();
   const network = useNetworkStatus();
   const projectStatus = useProjectStatus(id);
@@ -52,11 +59,14 @@ export function ProjectDetail({ id, onBack }: Props) {
   }, [deleteProjectTx.status]);
 
   if (isLoading) return <p className="empty-state">Loading project…</p>;
-  if (error || !project) return <p className="error-state">Project #{id} was not found.</p>;
+  if (error || !project)
+    return <p className="error-state">Project #{id} was not found.</p>;
 
-  const pct = project.goal > 0n ? Number((project.pledged * 100n) / project.goal) : 0;
+  const pct =
+    project.goal > 0n ? Number((project.pledged * 100n) / project.goal) : 0;
 
-  const isCreator = !!account && account.toLowerCase() === project.creator.toLowerCase();
+  const isCreator =
+    !!account && account.toLowerCase() === project.creator.toLowerCase();
   // Permission logic lives in lib/projectPermissions.ts (unit-tested) since
   // this exact spot already caused a real bug (isExpired fantasma).
   const canPledge = canPledgeProject(project.claimed);
@@ -91,13 +101,19 @@ export function ProjectDetail({ id, onBack }: Props) {
       </button>
       <h2>{metadata?.title ?? `Project #${id}`}</h2>
       {imageUrl && <img className="detail-image" src={imageUrl} alt="" />}
-      {metadata?.description && <p className="detail-description">{metadata.description}</p>}
+      {metadata?.description && (
+        <p className="detail-description">{metadata.description}</p>
+      )}
       <p>Creator: {project.creator}</p>
       <p>
-        Raised: {formatEther(project.pledged)} ETH of {formatEther(project.goal)} ETH ({Math.min(pct, 100)}%)
+        Raised: {formatEther(project.pledged)} ETH of{" "}
+        {formatEther(project.goal)} ETH ({Math.min(pct, 100)}%)
       </p>
       <div className="progress-track">
-        <div className="progress-fill" style={{ width: `${Math.min(pct, 100)}%` }} />
+        <div
+          className="progress-fill"
+          style={{ width: `${Math.min(pct, 100)}%` }}
+        />
       </div>
       <p className="field-hint">
         {project.claimed
@@ -110,12 +126,17 @@ export function ProjectDetail({ id, onBack }: Props) {
             can take a while to propagate to the public IPFS network, and
             generic gateways return 502 "no providers found" in the
             meantime. Pinata serves directly what it pinned itself. */}
-        <a href={`https://gateway.pinata.cloud/ipfs/${project.metadataCID}`} target="_blank" rel="noreferrer">
+        <a
+          href={`https://gateway.pinata.cloud/ipfs/${project.metadataCID}`}
+          target="_blank"
+          rel="noreferrer"
+        >
           view raw JSON
         </a>
         {documentUrl && (
           <>
-            {" "}·{" "}
+            {" "}
+            ·{" "}
             <a href={documentUrl} target="_blank" rel="noreferrer">
               view attached document
             </a>
@@ -134,19 +155,37 @@ export function ProjectDetail({ id, onBack }: Props) {
 
       {canClaim && (
         <div className="action-block">
-          <button onClick={() => claim.claimFunds(id)} disabled={claim.status === "pending" || claim.status === "confirming"}>
+          <button
+            onClick={() => claim.claimFunds(id)}
+            disabled={
+              claim.status === "pending" || claim.status === "confirming"
+            }
+          >
             Claim funds
           </button>
-          <TransactionStatus status={claim.status} errorMessage={claim.errorMessage} hash={claim.hash} />
+          <TransactionStatus
+            status={claim.status}
+            errorMessage={claim.errorMessage}
+            hash={claim.hash}
+          />
         </div>
       )}
 
       {canRefund && (
         <div className="action-block">
-          <button onClick={() => refund.refund(id)} disabled={refund.status === "pending" || refund.status === "confirming"}>
+          <button
+            onClick={() => refund.refund(id)}
+            disabled={
+              refund.status === "pending" || refund.status === "confirming"
+            }
+          >
             Request refund ({formatEther(projectStatus.myPledge)} ETH)
           </button>
-          <TransactionStatus status={refund.status} errorMessage={refund.errorMessage} hash={refund.hash} />
+          <TransactionStatus
+            status={refund.status}
+            errorMessage={refund.errorMessage}
+            hash={refund.hash}
+          />
         </div>
       )}
 
@@ -155,11 +194,18 @@ export function ProjectDetail({ id, onBack }: Props) {
           <button
             className="danger"
             onClick={() => {
-              if (window.confirm("This action is irreversible. Delete this project?")) {
+              if (
+                window.confirm(
+                  "This action is irreversible. Delete this project?",
+                )
+              ) {
                 deleteProjectTx.deleteProject(id);
               }
             }}
-            disabled={deleteProjectTx.status === "pending" || deleteProjectTx.status === "confirming"}
+            disabled={
+              deleteProjectTx.status === "pending" ||
+              deleteProjectTx.status === "confirming"
+            }
           >
             Delete project
           </button>

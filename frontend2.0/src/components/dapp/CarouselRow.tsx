@@ -11,9 +11,16 @@ interface Props {
   speedPxPerSecond?: number;
 }
 
-export function CarouselRow({ items, direction, speedPxPerSecond = 40 }: Props) {
+export function CarouselRow({
+  items,
+  direction,
+  speedPxPerSecond = 40,
+}: Props) {
   const reducedMotion = usePrefersReducedMotion();
-  const { rowRef, trackRef } = useInfiniteMarquee<HTMLDivElement>({ direction, speedPxPerSecond });
+  const { rowRef, trackRef } = useInfiniteMarquee<HTMLDivElement>({
+    direction,
+    speedPxPerSecond,
+  });
 
   if (reducedMotion) {
     // prefers-reduced-motion: static grid, not duplicated and without

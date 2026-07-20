@@ -24,7 +24,9 @@ async function parseIpfsHash(res: Response): Promise<string> {
 export async function pinFileToIPFS(buffer: Buffer, filename: string, mimetype: string): Promise<string> {
   const jwt = requirePinataJwt();
   const form = new FormData();
-  form.append("file", new Blob([buffer], { type: mimetype }), filename);
+  // Buffer.buffer is typed as ArrayBufferLike (could be SharedArrayBuffer), which Blob's
+  // BlobPart type rejects. Wrapping in a fresh Uint8Array guarantees a real ArrayBuffer backing.
+  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimetype }), filename);
 
   const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",

@@ -14,10 +14,19 @@ export function canClaimProject(params: {
   isSuccessful: boolean;
   claimed: boolean;
 }): boolean {
-  return params.canInteract && params.isCreator && params.isSuccessful && !params.claimed;
+  return (
+    params.canInteract &&
+    params.isCreator &&
+    params.isSuccessful &&
+    !params.claimed
+  );
 }
 
-export function canRefundProject(params: { canInteract: boolean; claimed: boolean; myPledge: bigint }): boolean {
+export function canRefundProject(params: {
+  canInteract: boolean;
+  claimed: boolean;
+  myPledge: bigint;
+}): boolean {
   return params.canInteract && !params.claimed && params.myPledge > 0n;
 }
 
@@ -27,5 +36,9 @@ export function canDeleteProject(params: {
   claimed: boolean;
   pledged: bigint;
 }): boolean {
-  return params.canInteract && params.isCreator && (params.claimed || params.pledged === 0n);
+  return (
+    params.canInteract &&
+    params.isCreator &&
+    (params.claimed || params.pledged === 0n)
+  );
 }

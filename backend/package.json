@@ -15,13 +15,15 @@
     "multer": "2.2.0",
     "cors": "2.8.6",
     "dotenv": "17.4.2",
-    "viem": "2.54.1"
+    "viem": "2.54.1",
+    "better-sqlite3": "12.11.1"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
     "@types/multer": "2.2.0",
     "@types/cors": "2.8.19",
     "@types/node": "26.1.1",
+    "@types/better-sqlite3": "7.6.13",
     "tsx": "4.23.0",
     "typescript": "6.0.3"
   }

@@ -34,13 +34,20 @@ vi.mock("wagmi", async (importOriginal) => {
 describe("useProjects", () => {
   it("decodes getProject's named-tuple object without throwing (regression: 'raw is not iterable')", () => {
     const { result } = renderHook(() => useProjects());
-    expect(result.current.projects).toEqual([{ id: 0, project: mockProjectRaw }]);
+    expect(result.current.projects).toEqual([
+      { id: 0, project: mockProjectRaw },
+    ]);
   });
 
   it("filters out deleted projects (creator == address(0))", async () => {
     const wagmi = await import("wagmi");
     vi.mocked(wagmi.useReadContracts).mockReturnValueOnce({
-      data: [{ status: "success", result: { ...mockProjectRaw, creator: ZERO_ADDRESS } }],
+      data: [
+        {
+          status: "success",
+          result: { ...mockProjectRaw, creator: ZERO_ADDRESS },
+        },
+      ],
       isLoading: false,
     } as never);
 

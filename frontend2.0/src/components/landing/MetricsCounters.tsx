@@ -36,7 +36,8 @@ const metrics: Metric[] = [
   {
     value: 0,
     label: "critical vulnerabilities (Slither)",
-    business: "19 findings → 0 exploitable. Expected noise from standard libraries.",
+    business:
+      "19 findings → 0 exploitable. Expected noise from standard libraries.",
   },
   {
     value: 5000,
@@ -62,14 +63,20 @@ function MetricCard({ m, delay }: { m: Metric; delay: number }) {
         className="group relative flex h-full flex-col rounded-2xl border p-7 card-hover hover:card-hover-lift"
         style={{
           background: "var(--panel)",
-          borderColor: m.highlight ? "oklch(0.82 0.15 78 / 0.4)" : "var(--hairline)",
-          boxShadow: m.highlight ? "var(--glow-accent)" : "var(--shadow-resting)",
+          borderColor: m.highlight
+            ? "oklch(0.82 0.15 78 / 0.4)"
+            : "var(--hairline)",
+          boxShadow: m.highlight
+            ? "var(--glow-accent)"
+            : "var(--shadow-resting)",
         }}
       >
         <div className="font-mono text-4xl font-medium tabular-nums tracking-tight sm:text-5xl">
           <span
             ref={ref}
-            style={{ color: m.highlight ? "var(--accent-strong)" : "var(--ink)" }}
+            style={{
+              color: m.highlight ? "var(--accent-strong)" : "var(--ink)",
+            }}
           >
             {m.prefix}
             {display}
@@ -87,10 +94,17 @@ function MetricCard({ m, delay }: { m: Metric; delay: number }) {
 
 export function MetricsCounters() {
   return (
-    <section id="metricas" className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+    <section
+      id="metricas"
+      className="relative border-t"
+      style={{ borderColor: "var(--hairline)" }}
+    >
       <div className="mx-auto max-w-6xl px-6 py-28">
         <Reveal>
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
+          <p
+            className="text-xs uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             Numbers that matter
           </p>
         </Reveal>

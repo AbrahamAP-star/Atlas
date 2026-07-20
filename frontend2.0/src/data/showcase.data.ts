@@ -37,27 +37,120 @@ import imagesPng from "@/assets/images.png";
 // content without claiming these are "real projects funded on the
 // platform" - replace with real photography once available.
 export const showcaseItems: ShowcaseItem[] = [
-  { id: "apple18", src: apple18, category: "agriculture", alt: "Apple orchard with ripe fruit" },
-  { id: "baglietto46m", src: baglietto46m, category: "infrastructure", alt: "Rendering of a large vessel" },
-  { id: "descarga1", src: descarga1, category: "technology", alt: "Close-up of an electronic circuit" },
-  { id: "descarga2", src: descarga2, category: "energy", alt: "Solar panel plant" },
-  { id: "descarga3", src: descarga3, category: "medicine", alt: "Medical laboratory equipment" },
-  { id: "descarga4", src: descarga4, category: "infrastructure", alt: "Construction crane at a job site" },
-  { id: "descarga5", src: descarga5, category: "robotics", alt: "Industrial robotic arm" },
-  { id: "descarga0", src: descarga0, category: "architecture", alt: "Facade of a modern building" },
-  { id: "images1", src: images1, category: "education", alt: "Educational space" },
-  { id: "images2", src: images2, category: "finance", alt: "Financial data panel or chart" },
-  { id: "images3", src: images3, category: "startup", alt: "Team working in an office" },
-  { id: "images4", src: images4, category: "ai", alt: "Abstract visualization of a neural network" },
-  { id: "images5", src: images5, category: "agriculture", alt: "Agricultural crop field" },
-  { id: "imagesJpeg", src: imagesJpeg, category: "technology", alt: "Technology-related image" },
-  { id: "imagesPng", src: imagesPng, category: "energy", alt: "Energy-related image" },
+  {
+    id: "apple18",
+    src: apple18,
+    category: "agriculture",
+    alt: "Apple orchard with ripe fruit",
+  },
+  {
+    id: "baglietto46m",
+    src: baglietto46m,
+    category: "infrastructure",
+    alt: "Rendering of a large vessel",
+  },
+  {
+    id: "descarga1",
+    src: descarga1,
+    category: "technology",
+    alt: "Close-up of an electronic circuit",
+  },
+  {
+    id: "descarga2",
+    src: descarga2,
+    category: "energy",
+    alt: "Solar panel plant",
+  },
+  {
+    id: "descarga3",
+    src: descarga3,
+    category: "medicine",
+    alt: "Medical laboratory equipment",
+  },
+  {
+    id: "descarga4",
+    src: descarga4,
+    category: "infrastructure",
+    alt: "Construction crane at a job site",
+  },
+  {
+    id: "descarga5",
+    src: descarga5,
+    category: "robotics",
+    alt: "Industrial robotic arm",
+  },
+  {
+    id: "descarga0",
+    src: descarga0,
+    category: "architecture",
+    alt: "Facade of a modern building",
+  },
+  {
+    id: "images1",
+    src: images1,
+    category: "education",
+    alt: "Educational space",
+  },
+  {
+    id: "images2",
+    src: images2,
+    category: "finance",
+    alt: "Financial data panel or chart",
+  },
+  {
+    id: "images3",
+    src: images3,
+    category: "startup",
+    alt: "Team working in an office",
+  },
+  {
+    id: "images4",
+    src: images4,
+    category: "ai",
+    alt: "Abstract visualization of a neural network",
+  },
+  {
+    id: "images5",
+    src: images5,
+    category: "agriculture",
+    alt: "Agricultural crop field",
+  },
+  {
+    id: "imagesJpeg",
+    src: imagesJpeg,
+    category: "technology",
+    alt: "Technology-related image",
+  },
+  {
+    id: "imagesPng",
+    src: imagesPng,
+    category: "energy",
+    alt: "Energy-related image",
+  },
 ];
 
 // Distribution across 3 rows of 5 items, mixing categories per row so each
 // carousel looks varied instead of grouping the same category together.
 export const carouselRows: ShowcaseItem[][] = [
-  [showcaseItems[0], showcaseItems[2], showcaseItems[9], showcaseItems[1], showcaseItems[11]],
-  [showcaseItems[3], showcaseItems[8], showcaseItems[7], showcaseItems[12], showcaseItems[6]],
-  [showcaseItems[4], showcaseItems[10], showcaseItems[5], showcaseItems[13], showcaseItems[14]],
+  [
+    showcaseItems[0],
+    showcaseItems[2],
+    showcaseItems[9],
+    showcaseItems[1],
+    showcaseItems[11],
+  ],
+  [
+    showcaseItems[3],
+    showcaseItems[8],
+    showcaseItems[7],
+    showcaseItems[12],
+    showcaseItems[6],
+  ],
+  [
+    showcaseItems[4],
+    showcaseItems[10],
+    showcaseItems[5],
+    showcaseItems[13],
+    showcaseItems[14],
+  ],
 ];

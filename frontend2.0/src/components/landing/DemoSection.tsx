@@ -11,10 +11,17 @@ import { Reveal } from "./Reveal";
 // in this section, same as they used to be mounted only in /app.
 export function DemoSection() {
   return (
-    <section id="demo" className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+    <section
+      id="demo"
+      className="relative border-t"
+      style={{ borderColor: "var(--hairline)" }}
+    >
       <div className="mx-auto max-w-6xl px-6 pt-28 pb-14">
         <Reveal>
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
+          <p
+            className="text-xs uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             Live demo
           </p>
         </Reveal>
@@ -25,8 +32,9 @@ export function DemoSection() {
         </Reveal>
         <Reveal delay={160}>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-[color:var(--ink-muted)]">
-            Connect your wallet on Base Sepolia or Ethereum Sepolia to create a campaign, pledge,
-            claim funds, or request a refund — against the real deployed contract.
+            Connect your wallet on Base Sepolia or Ethereum Sepolia to create a
+            campaign, pledge, claim funds, or request a refund — against the
+            real deployed contract.
           </p>
         </Reveal>
       </div>

@@ -23,15 +23,29 @@ export function GlobalTxToasts() {
   return (
     <div className="tx-toast-stack">
       {visible.map((tx) => {
-        const explorerUrl = chainId ? getExplorerTxUrl(chainId, tx.hash) : undefined;
+        const explorerUrl = chainId
+          ? getExplorerTxUrl(chainId, tx.hash)
+          : undefined;
         return (
           <div key={tx.hash} className={`tx-toast tx-toast--${tx.status}`}>
-            <span>{tx.status === "error" && tx.errorMessage ? tx.errorMessage : LABELS[tx.status]}</span>
+            <span>
+              {tx.status === "error" && tx.errorMessage
+                ? tx.errorMessage
+                : LABELS[tx.status]}
+            </span>
             {explorerUrl && (
-              <a href={explorerUrl} target="_blank" rel="noreferrer">view tx</a>
+              <a href={explorerUrl} target="_blank" rel="noreferrer">
+                view tx
+              </a>
             )}
             {(tx.status === "success" || tx.status === "error") && (
-              <button type="button" className="secondary" onClick={() => dismiss(tx.hash)}>✕</button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => dismiss(tx.hash)}
+              >
+                ✕
+              </button>
             )}
           </div>
         );

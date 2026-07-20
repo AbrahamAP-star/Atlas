@@ -2,9 +2,14 @@ import { useAccount, useSignMessage } from "wagmi";
 
 // Migrated 1:1 from frontend/src/hooks/useIpfsAuth.ts (docs/08_FRONTEND_MIGRATION.md).
 
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "http://localhost:3001";
+const BACKEND_URL =
+  (import.meta.env.VITE_BACKEND_URL as string | undefined) ??
+  "http://localhost:3001";
 
-async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+async function readErrorMessage(
+  res: Response,
+  fallback: string,
+): Promise<string> {
   const body = await res.json().catch(() => undefined);
   return body?.error ?? fallback;
 }
@@ -24,7 +29,13 @@ export function useIpfsAuth() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address }),
     });
-    if (!nonceRes.ok) throw new Error(await readErrorMessage(nonceRes, "Could not start the signing process."));
+    if (!nonceRes.ok)
+      throw new Error(
+        await readErrorMessage(
+          nonceRes,
+          "Could not start the signing process.",
+        ),
+      );
     const { message } = (await nonceRes.json()) as { message: string };
 
     const signature = await signMessage.mutateAsync({ message });
@@ -34,7 +45,13 @@ export function useIpfsAuth() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address, signature }),
     });
-    if (!verifyRes.ok) throw new Error(await readErrorMessage(verifyRes, "The signature could not be verified."));
+    if (!verifyRes.ok)
+      throw new Error(
+        await readErrorMessage(
+          verifyRes,
+          "The signature could not be verified.",
+        ),
+      );
     const { token } = (await verifyRes.json()) as { token: string };
     return token;
   }

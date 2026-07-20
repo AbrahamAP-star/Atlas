@@ -18,7 +18,10 @@ export function FinalCTA() {
       />
       <div className="relative mx-auto max-w-3xl px-6 py-32 text-center">
         <Reveal>
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
+          <p
+            className="text-xs uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             Let's work together
           </p>
         </Reveal>
@@ -29,8 +32,8 @@ export function FinalCTA() {
         </Reveal>
         <Reveal delay={160}>
           <p className="mt-6 text-[color:var(--ink-muted)]">
-            Email me. I answer every message personally —
-            we'll review your case and I'll tell you honestly if I'm the right person for it.
+            Email me. I answer every message personally — we'll review your case
+            and I'll tell you honestly if I'm the right person for it.
           </p>
         </Reveal>
 

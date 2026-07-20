@@ -15,9 +15,9 @@ Feedback de evaluación del proyecto (2026-07-19), inmediatamente después de ce
 |---|---|---|---|
 | 1 | CI (GitHub Actions) | 🔴 Crítico | CERRADO (2026-07-19) — Opción B+C híbrida |
 | 2 | Deploy Base Sepolia (cierre real de Fase 3) | 🔴 Crítico | PENDIENTE — depende de Abraham (fondos testnet) |
-| 3 | Tests de componentes reales (render con RTL) | 🟠 Alto | PENDIENTE |
-| 4 | Tests de `TxTrackerContext`/`useTxStatus` | 🟠 Alto | PENDIENTE |
-| 5 | Backend: estado en memoria → persistente | 🟡 Medio | PENDIENTE |
+| 3 | Tests de componentes reales (render con RTL) | 🟠 Alto | CERRADO (2026-07-20) — Opción A |
+| 4 | Tests de `TxTrackerContext`/`useTxStatus` | 🟠 Alto | CERRADO (2026-07-20) — Opción B |
+| 5 | Backend: estado en memoria → persistente | 🟡 Medio | CERRADO (2026-07-20) — Opción A |
 | 6 | `documentCID` sin mostrar en `ProjectDetail` | 🟡 Medio | PENDIENTE (ya documentado en 04/05) |
 | 7 | Lighthouse / validación en dispositivo real | 🟡 Medio | PENDIENTE (ya documentado en 04/06/07) |
 | 8 | README usuario final + doc técnica de arranque | 🟢 Bajo | PENDIENTE — parte del checklist de Fase 6 |
@@ -57,6 +57,28 @@ Implementado en `.github/workflows/ci.yml` (3 jobs: `contracts`, `gas-report`
 condicionado a `pull_request`, `frontend`). Scripts usados verificados contra
 los `package.json` reales (no de memoria): `compile`/`test`/`test:gas` en la
 raíz, `test` (vitest run) en `frontend2.0`.
+
+**Corrección post-implementación (mismo día):** el matrix real quedó en
+`[22, 24]`, no `[20, 22]` como se diseñó originalmente — Hardhat 3.9.1 y
+`@tanstack/react-start`/`pdfjs-dist` (en `frontend2.0`) exigen Node ≥22.12/
+22.13. Detalle completo del debugging (incluida la causa raíz real del fallo
+de lockfile de `frontend2.0`, no relacionada con Node): `04_STATUS.md` §
+"Sesion 2026-07-19 (4)".
+
+⚠️ **Advertencia para el futuro, no resuelta a proposito:** el lockfile de
+`frontend2.0` (`package-lock.json`) solo quedó estable porque se regeneró con
+`npm install` completo (no `--package-lock-only`). La mayoría de
+`devDependencies`/`dependencies` de `frontend2.0/package.json` (scaffold de
+Lovable, no tocado) usan rango `^` en vez de versión exacta — al contrario de
+la convención propia del proyecto ("versiones exactas, sin `^`", ver
+`04_STATUS.md`). Mientras el lockfile actual no se borre, `npm ci` sigue
+siendo determinístico. Pero si en el futuro alguien borra
+`package-lock.json` y lo regenera, una nueva versión publicada de cualquier
+dependencia de `nitro`/`unstorage` (beta) puede volver a producir el mismo
+error de lockfile desincronizado en CI — no es un bug que se "arregló
+definitivamente", es un riesgo estructural que sigue latente mientras esas
+dependencias no estén fijadas exactas. No se fijó ahora por ser scaffold de
+Lovable fuera del alcance pedido.
 ### Estado: CERRADO (2026-07-19)
 
 ---
@@ -107,8 +129,11 @@ Los 23 tests actuales de `frontend2.0/` son lógica pura extraída (`projectPerm
 - `expect(container).toMatchSnapshot()` en vez de aserciones explícitas.
 - **No recomendado como única estrategia:** un snapshot roto por cualquier cambio de estilo/copy genera ruido (falsos positivos) sin decirte si el bug es real — es rápido de escribir pero barato en señal. Mencionado por completitud, no como opción preferente.
 
-### Decisión: _(pendiente)_
-### Estado: PENDIENTE
+### Decisión: **Opción A — happy-path por componente clave** (2026-07-20)
+Se descartó B (formularios) por ahora: `CreateProjectForm`/`PledgeForm` dependen de IPFS auth y gas estimado, más superficie de mocks por poco beneficio adicional frente al riesgo real ya cerrado. Se descartó C (snapshots) por bajo valor de señal, igual que ya advertía este mismo documento.
+
+Implementado en `frontend2.0/src/components/ProjectCard.test.tsx` (4 tests: título/imagen real vs. fallback de inicial, pill "Withdrawn", click dispara `onSelect`) y `ProjectDetail.test.tsx` (5 tests: loading, creador ve solo Claim con el pledge form aún abierto, backer con pledge ve solo Refund nunca Claim, creador tras claim ve Delete y el pledge form se oculta, red no soportada oculta todos los botones de acción). Todos los hooks (`useProject`, `useProjectMetadata`, `useProjectStatus`, `useNetworkStatus`, `useClaimFunds`, `useRefund`, `useDeleteProject`, `useAccount`) se mockean con `vi.mock`; `lib/projectPermissions.ts` se deja real (ya tenía cobertura unitaria, esto prueba que `ProjectDetail.tsx` le pasa los props correctos — el bug real de la sesión 2026-07-14 fue justo ahí, en la integración, no en la lógica pura). `PledgeForm` se stubea como componente hijo para no arrastrar `usePledge`/`useWriteContract` real.
+### Estado: CERRADO (2026-07-20)
 
 ---
 
@@ -130,8 +155,11 @@ Es la pieza que resolvió el bug de lifecycle más serio del proyecto (component
 **Opción C — Aceptar el riesgo por ahora, documentar como pendiente explícito**
 - No implementar todavía; dejar registrado aquí como deuda conocida en vez de cobertura falsa con un test superficial que no prueba el caso real.
 
-### Decisión: _(pendiente)_
-### Estado: PENDIENTE
+### Decisión: **Opción B — integración provider + consumidor, incluyendo unmount/remount** (2026-07-20)
+Se descartó A (lógica en aislamiento) porque no habría probado la garantía real que esta arquitectura promete: que un componente puede desmontarse a mitad de una tx y el resultado no se pierde. Probar solo el reducer sin el ciclo de vida real habria dado falsa confianza — exactamente el riesgo que `05_CRITICAL_REVIEW.md`/`04_STATUS.md` ya documentaron como el bug mas serio del proyecto. Se descarto C (aceptar el riesgo) por ser la pieza de mayor impacto real sin ningun test.
+
+Implementado en `frontend2.0/src/context/TxTrackerContext.test.tsx` (5 tests, `wagmi.useWaitForTransactionReceipt`/`usePublicClient` mockeados, `@/lib/txErrors` mockeado para aislar la logica propia del provider): confirming→success, **el escenario central: un `Consumer` se desmonta a mitad de tx, `TxTrackerProvider` sigue resolviendola sola, un `Consumer` nuevo montado despues ve el resultado ya resuelto sin volver a llamar `track()`**, persistencia/limpieza en `localStorage`, rehidratacion de un hash pendiente al montar (con un `Reader` que nunca llama `track()`, para probar que el dato viene realmente del `useState` inicial), y resolucion de error via eth_call replay. `frontend2.0/src/hooks/useTxStatus.test.ts` (5 tests) cubre el adaptador por separado: idle sin hash, error de wallet (`writeError`) con prioridad sobre cualquier estado ya trackeado, registro del hash en el tracker, estado `confirming` mientras no hay resolucion, y passthrough del estado/mensaje ya resuelto.
+### Estado: CERRADO (2026-07-20)
 
 ---
 
@@ -153,8 +181,13 @@ Es la pieza que resolvió el bug de lifecycle más serio del proyecto (component
 **Opción C — No tocar todavía, documentar como riesgo aceptado**
 - Válido mientras el backend corra en una sola instancia en `localhost` (estado actual real) — coherente con "no añadir complejidad sin necesidad técnica real", mismo criterio ya aplicado en otras decisiones del proyecto (`06_FRONTEND_VISUAL_UPGRADE.md` §2).
 
-### Decisión: _(pendiente)_
-### Estado: PENDIENTE
+### Decisión: **Opción A — SQLite (`better-sqlite3`)** (2026-07-20)
+Se descartó B (Redis) por ser infraestructura nueva sin necesidad real: el volumen actual es 1 subida/IP/ventana, un solo proceso en `localhost`. Se descartó C (no tocar) porque ya había una opción barata (A) que cierra el riesgo real (perder nonces/sesiones activas en cada restart del backend durante desarrollo) sin agregar una pieza de infraestructura nueva que correr.
+
+Implementado: `backend/src/db.ts` (nuevo, un solo archivo `backend/data/backend.sqlite`, `journal_mode = WAL`, crea las 3 tablas si no existen, limpieza peridica cada 5 min de filas expiradas via `setInterval(...).unref()`). `nonceStore.ts`/`sessionStore.ts`/`rateLimiter.ts` reescritos para usar SQLite en vez de `Map`, **misma API publica exacta** (mismas firmas de función) — `index.ts`/`auth.ts` no necesitaron ningún cambio. Nueva dependencia `better-sqlite3@12.11.1` (+ `@types/better-sqlite3@7.6.13`), versiones exactas verificadas en npmjs.com el mismo dia. `backend/data/` agregado a `.gitignore` (mismo criterio que `node_modules`: es estado local generado, no fuente).
+
+**Limitacion que se mantiene, documentada a proposito:** sigue sin ser compartido entre múltiples instancias del backend (si algun dia se escala horizontalmente, hace falta Redis u otro store compartido — la Opcion B descartada aqui). Aceptable mientras el backend corra como un unico proceso, que es el estado real actual.
+### Estado: CERRADO (2026-07-20)
 
 ---
 

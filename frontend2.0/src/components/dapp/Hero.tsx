@@ -23,13 +23,19 @@ export function Hero({ onExplore, onCreate, canCreate }: Props) {
       <div className="hero-copy">
         <h1 className="hero-title">Fund real projects, with no middlemen</h1>
         <p className="hero-subtitle">
-          On-chain crowdfunding: the funds are held in custody by the contract, not by an administrator.
+          On-chain crowdfunding: the funds are held in custody by the contract,
+          not by an administrator.
         </p>
         <div className="hero-actions">
           <Button size="lg" onClick={onExplore}>
             Explore projects
           </Button>
-          <Button size="lg" variant="outline" onClick={onCreate} disabled={!canCreate}>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={onCreate}
+            disabled={!canCreate}
+          >
             Create project
           </Button>
         </div>

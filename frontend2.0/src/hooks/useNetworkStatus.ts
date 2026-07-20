@@ -9,7 +9,8 @@ import {
 // Migrated 1:1 from frontend/src/hooks/useNetworkStatus.ts (docs/08_FRONTEND_MIGRATION.md).
 // Only change: imports via the "@/..." alias.
 
-export type NetworkKind = "disconnected" | "unsupported-chain" | "not-deployed" | "ready";
+export type NetworkKind =
+  "disconnected" | "unsupported-chain" | "not-deployed" | "ready";
 
 /**
  * Single source of truth for the active network and whether the contract can
@@ -22,8 +23,12 @@ export function useNetworkStatus() {
 
   // No wallet: browse in read-only mode on the first network with a real deploy.
   const activeChainId = isConnected ? walletChainId! : defaultReadChainId;
-  const isSupportedChain = supportedChains.some((chain) => chain.id === activeChainId);
-  const address = isSupportedChain ? getCrowdfundingAddress(activeChainId) : undefined;
+  const isSupportedChain = supportedChains.some(
+    (chain) => chain.id === activeChainId,
+  );
+  const address = isSupportedChain
+    ? getCrowdfundingAddress(activeChainId)
+    : undefined;
 
   let kind: NetworkKind;
   if (!isConnected) kind = "disconnected";

@@ -16,16 +16,21 @@ export function TransactionStatus({ status, errorMessage, hash }: Props) {
   if (status === "idle") return null;
 
   if (status === "error") {
-    return <p className="tx-banner error">{errorMessage ?? "An error occurred."}</p>;
+    return (
+      <p className="tx-banner error">{errorMessage ?? "An error occurred."}</p>
+    );
   }
   if (status === "success") {
     return <p className="tx-banner success">Confirmed on the blockchain.</p>;
   }
 
-  const explorerUrl = hash && chainId ? getExplorerTxUrl(chainId, hash) : undefined;
+  const explorerUrl =
+    hash && chainId ? getExplorerTxUrl(chainId, hash) : undefined;
   return (
     <p className="tx-banner pending">
-      {status === "confirming" ? "Confirming on the blockchain…" : "Waiting for your wallet to confirm…"}
+      {status === "confirming"
+        ? "Confirming on the blockchain…"
+        : "Waiting for your wallet to confirm…"}
       {explorerUrl && (
         <>
           {" "}

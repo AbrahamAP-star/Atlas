@@ -8,14 +8,42 @@
 // `ProjectClosed` was added.
 // `as const` lets viem/wagmi infer exact types for args and outputs.
 export const crowdfundingAbi = [
-  { inputs: [{ internalType: "uint256", name: "id", type: "uint256" }], name: "AlreadyClaimed", type: "error" },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "AlreadyClaimed",
+    type: "error",
+  },
   { inputs: [], name: "InvalidGoal", type: "error" },
-  { inputs: [{ internalType: "uint256", name: "id", type: "uint256" }], name: "NoFundsToRefund", type: "error" },
-  { inputs: [{ internalType: "uint256", name: "id", type: "uint256" }], name: "NotProjectCreator", type: "error" },
-  { inputs: [{ internalType: "uint256", name: "id", type: "uint256" }], name: "ProjectClosed", type: "error" },
-  { inputs: [{ internalType: "uint256", name: "id", type: "uint256" }], name: "ProjectHasActiveFunds", type: "error" },
-  { inputs: [{ internalType: "uint256", name: "id", type: "uint256" }], name: "ProjectNotFound", type: "error" },
-  { inputs: [{ internalType: "uint256", name: "id", type: "uint256" }], name: "ProjectNotSuccessful", type: "error" },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "NoFundsToRefund",
+    type: "error",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "NotProjectCreator",
+    type: "error",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "ProjectClosed",
+    type: "error",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "ProjectHasActiveFunds",
+    type: "error",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "ProjectNotFound",
+    type: "error",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "id", type: "uint256" }],
+    name: "ProjectNotSuccessful",
+    type: "error",
+  },
   { inputs: [], name: "ReentrancyGuardReentrantCall", type: "error" },
   {
     inputs: [
@@ -31,7 +59,12 @@ export const crowdfundingAbi = [
     anonymous: false,
     inputs: [
       { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-      { indexed: false, internalType: "uint96", name: "amount", type: "uint96" },
+      {
+        indexed: false,
+        internalType: "uint96",
+        name: "amount",
+        type: "uint96",
+      },
     ],
     name: "FundsClaimed",
     type: "event",
@@ -40,15 +73,27 @@ export const crowdfundingAbi = [
     anonymous: false,
     inputs: [
       { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-      { indexed: true, internalType: "address", name: "backer", type: "address" },
-      { indexed: false, internalType: "uint96", name: "amount", type: "uint96" },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "backer",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint96",
+        name: "amount",
+        type: "uint96",
+      },
     ],
     name: "Pledged",
     type: "event",
   },
   {
     anonymous: false,
-    inputs: [{ indexed: true, internalType: "uint256", name: "id", type: "uint256" }],
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
+    ],
     name: "ProjectDeleted",
     type: "event",
   },
@@ -56,7 +101,12 @@ export const crowdfundingAbi = [
     anonymous: false,
     inputs: [
       { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-      { indexed: true, internalType: "address", name: "creator", type: "address" },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "creator",
+        type: "address",
+      },
       { indexed: false, internalType: "uint96", name: "goal", type: "uint96" },
     ],
     name: "ProjectCreated",
@@ -66,8 +116,18 @@ export const crowdfundingAbi = [
     anonymous: false,
     inputs: [
       { indexed: true, internalType: "uint256", name: "id", type: "uint256" },
-      { indexed: true, internalType: "address", name: "backer", type: "address" },
-      { indexed: false, internalType: "uint96", name: "amount", type: "uint96" },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "backer",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint96",
+        name: "amount",
+        type: "uint96",
+      },
     ],
     name: "Refunded",
     type: "event",

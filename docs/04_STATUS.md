@@ -291,6 +291,45 @@ arriba en este archivo). No se toco por ser scaffold de Lovable no pedido a
 modificar; queda documentado por si el lockfile necesita regenerarse de cero
 en el futuro y vuelve a aparecer el mismo tipo de error.
 
+## Sesion 2026-07-20: tests de componentes reales (RTL) — punto 3 de `09_ROADMAP_MEJORAS.md` CERRADO
+
+Opcion A del roadmap. Nuevos: `frontend2.0/src/components/ProjectCard.test.tsx` (4 tests) y `ProjectDetail.test.tsx` (5 tests). Mockean todos los hooks (`useProject`, `useProjectMetadata`, `useProjectStatus`, `useNetworkStatus`, `useClaimFunds`, `useRefund`, `useDeleteProject`, `useAccount`) via `vi.mock`; `PledgeForm` se stubea como hijo. `lib/projectPermissions.ts` queda real: el objetivo es probar que `ProjectDetail.tsx` le pasa los props correctos, no reprobar la logica pura ya cubierta desde la sesion 2026-07-19 (2). Cubre en DOM el escenario exacto del bug real de la sesion 2026-07-14 (`canClaim`/`canRefund` nunca se activaban). **Total frontend2.0: 32 tests** (23 previos + 9 nuevos). Detalle de la decision en `09_ROADMAP_MEJORAS.md` § 3.
+
+**Pendiente no bloqueante:** correr `cd frontend2.0 && npm run test` localmente para confirmar en verde (no ejecutable desde este entorno, misma limitacion ya documentada).
+
+## Sesion 2026-07-20 (2): tests de TxTrackerContext/useTxStatus — punto 4 de `09_ROADMAP_MEJORAS.md` CERRADO
+
+Opcion B del roadmap (integracion, no solo logica aislada) — justificado porque el punto de esta pieza es sobrevivir al unmount de quien origino la tx, y una prueba de reducer aislado no habria probado eso. Nuevos: `frontend2.0/src/context/TxTrackerContext.test.tsx` (5 tests) y `frontend2.0/src/hooks/useTxStatus.test.ts` (5 tests).
+
+- **Test central:** un `Consumer` (stand-in de `PledgeForm`) se desmonta a mitad de una tx; `TxTrackerProvider` (nunca desmontado, `rerender` reutiliza la misma instancia) sigue resolviendo via `TxWatcher`; un `Consumer` nuevo montado despues lee el resultado ya resuelto sin llamar `track()` de nuevo — reproduce en test el bug real de la sesion 2026-07-14 que motivo esta arquitectura.
+- Cubre tambien: transicion confirming→success, persistencia/limpieza de hashes en `localStorage`, rehidratacion al montar (con un `Reader` que nunca llama `track()`, para aislar que el dato viene del `useState` inicial y no de un track posterior), y resolucion de error via eth_call replay (con `@/lib/txErrors` mockeado — su propio parseo ya tiene test dedicado desde la sesion 2026-07-19 (2)).
+- `useTxStatus.test.ts`: idle sin hash, error de wallet (`writeError`) con prioridad sobre cualquier estado ya trackeado, registro del hash, estado `confirming` intermedio, passthrough del estado resuelto.
+- `wagmi.useWaitForTransactionReceipt`/`usePublicClient` mockeados en vez de un `WagmiProvider` real: mismo criterio que `useProjects.test.ts` (sesion 2026-07-19 (2)).
+
+**Total frontend2.0: 42 tests** (32 previos + 10 nuevos). Detalle de la decision en `09_ROADMAP_MEJORAS.md` § 4.
+
+**Bug real encontrado y corregido en `frontend2.0/src/context/TxTrackerContext.tsx` durante esta sesion** (no cosmetico, afecta produccion): `TxWatcher` resolvia el estado `"error"` en dos pasadas (mensaje generico primero, nombre decodificado del replay de `eth_call` despues); la primera pasada ya ponia el status en `"error"`, lo cual sacaba al hash de `unresolvedHashes` y desmontaba el `TxWatcher` **antes** de que el replay real (round-trip de red) terminara — el nombre de error decodificado nunca llegaba a aplicarse, el usuario siempre veia el mensaje generico. Se detecto porque el test de error fallaba incluso con `waitFor`, no se ajusto el test para que pasara: se investigo la causa y se corrigio el codigo fuente (una sola resolucion, esperando el replay antes de llamar a `onResolve`). Detalle completo: `05_CRITICAL_REVIEW.md` § "Bug real encontrado y corregido (2026-07-20)".
+
+**Pendiente no bloqueante:** correr `cd frontend2.0 && npm run test` localmente para confirmar en verde.
+
+## Sesion 2026-07-20 (3): backend con persistencia SQLite — punto 5 de `09_ROADMAP_MEJORAS.md` CERRADO
+
+Opcion A del roadmap (no B/Redis, no C). Nuevo `backend/src/db.ts` (archivo unico `backend/data/backend.sqlite`, `journal_mode = WAL`, 3 tablas `nonces`/`sessions`/`quota_usage`, limpieza periodica de filas expiradas cada 5 min). `nonceStore.ts`/`sessionStore.ts`/`rateLimiter.ts` reescritos sobre SQLite en vez de `Map`, **misma API publica exacta** — `index.ts`/`auth.ts` no cambiaron. Nueva dependencia `better-sqlite3@12.11.1` (+ `@types/better-sqlite3@7.6.13`), version exacta verificada en npmjs.com el mismo dia. `backend/data/` agregado a `.gitignore`.
+
+**Por que ahora se justificaba (y antes no):** el riesgo real no era teorico — cada `npm run dev`/reinicio del backend en desarrollo invalidaba sesiones y nonces activos sin previo aviso. Con SQLite eso sobrevive a un restart del proceso, sin agregar una pieza de infraestructura nueva que correr (coherente con "backend minimo", `00_PROJECT_OVERVIEW.md`).
+
+**Limitacion que se mantiene a proposito (documentada, no un descuido):** sigue sin ser compartido entre multiples instancias del backend si algun dia se escala horizontalmente — eso seria la Opcion B (Redis), descartada por no haber necesidad real hoy.
+
+**Pendiente para Abraham:**
+```bash
+cd backend
+npm install   # baja better-sqlite3 (modulo nativo, compila/descarga prebuild segun plataforma)
+npm run dev
+```
+El archivo `backend/data/backend.sqlite` se crea solo en el primer arranque, no requiere ningun setup manual.
+
+**Pendiente no bloqueante:** correr `cd backend && npm install && npm run lint` (tsc --noEmit) localmente para confirmar que compila sin errores — no ejecutable desde este entorno (`better-sqlite3` es un modulo nativo, este sandbox no tiene el binario real ni acceso al filesystem de WSL).
+
 ## Punto de partida para Fase 6
 No iniciar hasta que Abraham de el visto bueno explicito (regla del proyecto: no avanzar de fase sin autorizacion). Checklist en `03_PLAN_FASES.md` «Fase 6»: deploy en mainnet de Base, README para usuario final, documentacion tecnica final.
 

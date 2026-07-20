@@ -8,7 +8,7 @@ const QUERY = "(prefers-reduced-motion: reduce)";
 // (the user can toggle it without reloading the page).
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(QUERY).matches
+    () => typeof window !== "undefined" && window.matchMedia(QUERY).matches,
   );
 
   useEffect(() => {

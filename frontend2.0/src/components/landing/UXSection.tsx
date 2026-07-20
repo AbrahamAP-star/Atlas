@@ -10,7 +10,11 @@ const points = [
 
 export function UXSection() {
   return (
-    <section id="ux" className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+    <section
+      id="ux"
+      className="relative border-t"
+      style={{ borderColor: "var(--hairline)" }}
+    >
       <div className="mx-auto grid max-w-6xl gap-14 px-6 py-28 md:grid-cols-2 md:items-center">
         <div>
           <Reveal>
@@ -75,7 +79,9 @@ export function UXSection() {
                   <p className="text-xs uppercase tracking-widest text-[color:var(--ink-dim)]">
                     Project #42
                   </p>
-                  <p className="mt-1 text-lg font-semibold">Prototype manufacturing</p>
+                  <p className="mt-1 text-lg font-semibold">
+                    Prototype manufacturing
+                  </p>
                 </div>
                 <span
                   className="rounded-full border px-2.5 py-1 font-mono text-[10px]"

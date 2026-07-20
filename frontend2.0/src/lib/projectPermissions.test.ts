@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { canPledgeProject, canClaimProject, canRefundProject, canDeleteProject } from "./projectPermissions";
+import {
+  canPledgeProject,
+  canClaimProject,
+  canRefundProject,
+  canDeleteProject,
+} from "./projectPermissions";
 
 describe("canPledgeProject", () => {
   it("allows pledging while the project isn't claimed", () => {
@@ -12,7 +17,12 @@ describe("canPledgeProject", () => {
 });
 
 describe("canClaimProject", () => {
-  const base = { canInteract: true, isCreator: true, isSuccessful: true, claimed: false };
+  const base = {
+    canInteract: true,
+    isCreator: true,
+    isSuccessful: true,
+    claimed: false,
+  };
 
   it("allows the creator to claim a successful, unclaimed project", () => {
     expect(canClaimProject(base)).toBe(true);
@@ -52,14 +62,21 @@ describe("canRefundProject", () => {
 });
 
 describe("canDeleteProject", () => {
-  const base = { canInteract: true, isCreator: true, claimed: false, pledged: 0n };
+  const base = {
+    canInteract: true,
+    isCreator: true,
+    claimed: false,
+    pledged: 0n,
+  };
 
   it("allows deleting a project with no pledges", () => {
     expect(canDeleteProject(base)).toBe(true);
   });
 
   it("allows deleting an already-claimed project even with historical pledges", () => {
-    expect(canDeleteProject({ ...base, claimed: true, pledged: 5n })).toBe(true);
+    expect(canDeleteProject({ ...base, claimed: true, pledged: 5n })).toBe(
+      true,
+    );
   });
 
   it("blocks deleting a project with unclaimed active funds", () => {

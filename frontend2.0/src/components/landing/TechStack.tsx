@@ -51,10 +51,17 @@ const groups = [
 
 export function TechStack() {
   return (
-    <section id="stack" className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+    <section
+      id="stack"
+      className="relative border-t"
+      style={{ borderColor: "var(--hairline)" }}
+    >
       <div className="mx-auto max-w-6xl px-6 py-28">
         <Reveal>
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
+          <p
+            className="text-xs uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             Tech stack
           </p>
         </Reveal>
@@ -69,7 +76,10 @@ export function TechStack() {
             <Reveal key={g.label} delay={gi * 80}>
               <div
                 className="rounded-2xl border p-6"
-                style={{ background: "var(--panel)", borderColor: "var(--hairline)" }}
+                style={{
+                  background: "var(--panel)",
+                  borderColor: "var(--hairline)",
+                }}
               >
                 <p className="text-xs uppercase tracking-[0.18em] text-[color:var(--ink-dim)]">
                   {g.label}

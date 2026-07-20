@@ -5,7 +5,10 @@ export function Hero() {
   return (
     <section className="relative overflow-hidden">
       {/* Subtle node grid backdrop — decorative, low opacity, no parallax */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 hairline-grid opacity-40" />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 hairline-grid opacity-40"
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-[-10rem] h-[32rem] w-[32rem] -translate-x-1/2 rounded-full"
@@ -23,7 +26,10 @@ export function Hero() {
           >
             <span
               className="h-1.5 w-1.5 rounded-full"
-              style={{ background: "var(--accent)", boxShadow: "0 0 8px var(--accent)" }}
+              style={{
+                background: "var(--accent)",
+                boxShadow: "0 0 8px var(--accent)",
+              }}
             />
             Case study · Crowdfunding DApp
           </span>
@@ -32,16 +38,16 @@ export function Hero() {
         <Reveal delay={80}>
           <h1 className="mt-8 max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
             An on-chain crowdfunding dApp where funds{" "}
-            <span style={{ color: "var(--accent)" }}>never get stuck</span> or depend on a
-            middleman.
+            <span style={{ color: "var(--accent)" }}>never get stuck</span> or
+            depend on a middleman.
           </h1>
         </Reveal>
 
         <Reveal delay={160}>
           <p className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-[color:var(--ink-muted)] sm:text-lg">
-             Raise capital without
-            banks or slow centralized platforms, with automatic protection against bad faith —
-            deployed, verified, and statically audited.
+            Raise capital without banks or slow centralized platforms, with
+            automatic protection against bad faith — deployed, verified, and
+            statically audited.
           </p>
         </Reveal>
 

@@ -15,7 +15,11 @@ import { playBackSound, playNavigateSound } from "@/lib/sounds";
 // (marquee + Explore/Create), not the portfolio Hero in components/landing.
 // Mounted from src/routes/app.tsx, wrapped in WagmiProvider + TxTrackerProvider.
 
-type View = { name: "home" } | { name: "list" } | { name: "detail"; id: number } | { name: "create" };
+type View =
+  | { name: "home" }
+  | { name: "list" }
+  | { name: "detail"; id: number }
+  | { name: "create" };
 
 export function AppShell() {
   const [view, setView] = useState<View>({ name: "home" });
@@ -56,47 +60,58 @@ export function AppShell() {
         <div className="app-shell">
           {/* Read-only without a wallet: you can navigate, not interact. */}
           {network.kind === "disconnected" && (
-            <p className="network-hint">Please connect your wallet to create, pledge, claim, or request a refund.</p>
+            <p className="network-hint">
+              Please connect your wallet to create, pledge, claim, or request a
+              refund.
+            </p>
           )}
 
           {/* key=view.name resets the entry animation (.view-fade in
               styles.css) on every view change, without relying on the View
               Transitions API (not supported in every browser). */}
           <div key={view.name} className="view-fade">
-          {view.name === "list" && (
-            <>
-              <div className="view-toolbar">
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    playBackSound();
-                    setView({ name: "home" });
-                  }}
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => {
+            {view.name === "list" && (
+              <>
+                <div className="view-toolbar">
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      playBackSound();
+                      setView({ name: "home" });
+                    }}
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={() => {
+                      playNavigateSound();
+                      setView({ name: "create" });
+                    }}
+                    disabled={!network.canInteract}
+                  >
+                    + New project
+                  </button>
+                </div>
+                <ProjectList
+                  onSelect={(id) => {
                     playNavigateSound();
-                    setView({ name: "create" });
+                    setView({ name: "detail", id });
                   }}
-                  disabled={!network.canInteract}
-                >
-                  + New project
-                </button>
-              </div>
-              <ProjectList
-                onSelect={(id) => {
-                  playNavigateSound();
-                  setView({ name: "detail", id });
-                }}
+                />
+              </>
+            )}
+            {view.name === "detail" && (
+              <ProjectDetail
+                id={view.id}
+                onBack={() => setView({ name: "list" })}
               />
-            </>
-          )}
-          {view.name === "detail" && <ProjectDetail id={view.id} onBack={() => setView({ name: "list" })} />}
-          {view.name === "create" && (
-            <CreateProjectForm onCreated={() => setView({ name: "list" })} onCancel={() => setView({ name: "list" })} />
-          )}
+            )}
+            {view.name === "create" && (
+              <CreateProjectForm
+                onCreated={() => setView({ name: "list" })}
+                onCancel={() => setView({ name: "list" })}
+              />
+            )}
           </div>
         </div>
       )}

@@ -1,4 +1,10 @@
-import { useAccount, useConnect, useConnectors, useDisconnect, useSwitchChain } from "wagmi";
+import {
+  useAccount,
+  useConnect,
+  useConnectors,
+  useDisconnect,
+  useSwitchChain,
+} from "wagmi";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { supportedChains } from "@/contracts/crowdfundingConfig";
 
@@ -16,7 +22,8 @@ export function ConnectWallet() {
   const network = useNetworkStatus();
 
   if (!isConnected) {
-    const injected = connectors.find((c) => c.type === "injected") ?? connectors[0];
+    const injected =
+      connectors.find((c) => c.type === "injected") ?? connectors[0];
     return (
       <div className="wallet-box">
         <button
@@ -25,7 +32,9 @@ export function ConnectWallet() {
         >
           {connect.isPending ? "Connecting…" : "Connect wallet"}
         </button>
-        <p className="network-hint">Read-only mode. Connect your wallet to pledge, create, or claim.</p>
+        <p className="network-hint">
+          Read-only mode. Connect your wallet to pledge, create, or claim.
+        </p>
       </div>
     );
   }
@@ -34,7 +43,9 @@ export function ConnectWallet() {
     <div className="wallet-box">
       <select
         value={network.activeChainId}
-        onChange={(e) => switchChain.mutate({ chainId: Number(e.target.value) })}
+        onChange={(e) =>
+          switchChain.mutate({ chainId: Number(e.target.value) })
+        }
       >
         {supportedChains.map((chain) => (
           <option key={chain.id} value={chain.id}>
@@ -50,12 +61,14 @@ export function ConnectWallet() {
       </div>
       {network.kind === "unsupported-chain" && (
         <p className="network-hint error">
-          This network isn't supported. Switch to: {network.supportedChainNames.join(", ")}.
+          This network isn't supported. Switch to:{" "}
+          {network.supportedChainNames.join(", ")}.
         </p>
       )}
       {network.kind === "not-deployed" && (
         <p className="network-hint error">
-          The contract isn't deployed on this network. Switch to: {network.deployedChainNames.join(", ")}.
+          The contract isn't deployed on this network. Switch to:{" "}
+          {network.deployedChainNames.join(", ")}.
         </p>
       )}
     </div>

@@ -21,7 +21,9 @@ function isTextItem(item: unknown): item is { str: string } {
  * scanned as an image, with no real text layer) - in that case the file
  * still gets uploaded as an attachment, just without a reflection in Description.
  */
-export async function extractTextFromFile(file: File): Promise<string | undefined> {
+export async function extractTextFromFile(
+  file: File,
+): Promise<string | undefined> {
   if (file.type === "text/plain") {
     const text = await file.text();
     return text.length > 0 ? text : undefined;
@@ -32,7 +34,8 @@ export async function extractTextFromFile(file: File): Promise<string | undefine
     // (see header comment). The ES module cache avoids reloading
     // pdfjs-dist on subsequent calls within the same session.
     const pdfjsLib = await import("pdfjs-dist");
-    const pdfWorkerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
+    const pdfWorkerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs?url"))
+      .default;
     pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
     const buffer = await file.arrayBuffer();
@@ -43,7 +46,10 @@ export async function extractTextFromFile(file: File): Promise<string | undefine
       const content = await page.getTextContent();
       // Each text item is a fragment (line/word depending on how the PDF
       // encoded the content); joining them with a space preserves readability.
-      const pageText = content.items.filter(isTextItem).map((item) => item.str).join(" ");
+      const pageText = content.items
+        .filter(isTextItem)
+        .map((item) => item.str)
+        .join(" ");
       pageTexts.push(pageText.trim());
     }
     const text = pageTexts.join("\n\n").trim();

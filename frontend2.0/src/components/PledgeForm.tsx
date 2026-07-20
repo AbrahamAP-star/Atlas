@@ -41,10 +41,17 @@ export function PledgeForm({ id, address, disabled, onConfirmed }: Props) {
         disabled={disabled}
         required
       />
-      <button type="submit" disabled={disabled || status === "pending" || status === "confirming"}>
+      <button
+        type="submit"
+        disabled={disabled || status === "pending" || status === "confirming"}
+      >
         Pledge
       </button>
-      <TransactionStatus status={status} errorMessage={errorMessage} hash={hash} />
+      <TransactionStatus
+        status={status}
+        errorMessage={errorMessage}
+        hash={hash}
+      />
     </form>
   );
 }

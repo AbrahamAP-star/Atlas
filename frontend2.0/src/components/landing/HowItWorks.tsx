@@ -5,35 +5,38 @@ const steps = [
   {
     icon: FileText,
     title: "Publish campaign",
-    body:
-      "The creator defines title, description, image, and minimum goal. The metadata is uploaded to IPFS; the contract only stores the CID.",
+    body: "The creator defines title, description, image, and minimum goal. The metadata is uploaded to IPFS; the contract only stores the CID.",
   },
   {
     icon: Wallet,
     title: "Pledge with no middlemen",
-    body:
-      "Any wallet pledges funds directly to the contract. No custody, no platform approving the flow.",
+    body: "Any wallet pledges funds directly to the contract. No custody, no platform approving the flow.",
   },
   {
     icon: HandCoins,
     title: "Withdrawal when the creator decides",
-    body:
-      "Once the goal is reached, the creator withdraws via pull payment — never automatic, never forced.",
+    body: "Once the goal is reached, the creator withdraws via pull payment — never automatic, never forced.",
   },
   {
     icon: Undo2,
     title: "Individual refund, always available",
-    body:
-      "A backer can request their refund at any time before the creator withdraws, without depending on others.",
+    body: "A backer can request their refund at any time before the creator withdraws, without depending on others.",
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section id="flujo" className="relative border-t" style={{ borderColor: "var(--hairline)" }}>
+    <section
+      id="flujo"
+      className="relative border-t"
+      style={{ borderColor: "var(--hairline)" }}
+    >
       <div className="mx-auto max-w-6xl px-6 py-28">
         <Reveal>
-          <p className="text-xs uppercase tracking-[0.2em]" style={{ color: "var(--accent)" }}>
+          <p
+            className="text-xs uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             How it works
           </p>
         </Reveal>
@@ -48,7 +51,10 @@ export function HowItWorks() {
             <Reveal key={s.title} delay={120 + i * 90} as="li">
               <div
                 className="group relative flex h-full flex-col rounded-2xl border p-6 card-hover hover:card-hover-lift"
-                style={{ background: "var(--panel)", borderColor: "var(--hairline)" }}
+                style={{
+                  background: "var(--panel)",
+                  borderColor: "var(--hairline)",
+                }}
               >
                 <div className="flex items-center justify-between">
                   <span
@@ -60,9 +66,7 @@ export function HowItWorks() {
                   >
                     <s.icon className="h-5 w-5" />
                   </span>
-                  <span
-                    className="font-mono text-xs tracking-tight text-[color:var(--ink-dim)]"
-                  >
+                  <span className="font-mono text-xs tracking-tight text-[color:var(--ink-dim)]">
                     0{i + 1}
                   </span>
                 </div>
