@@ -42,6 +42,7 @@ export function ConnectWallet() {
   return (
     <div className="wallet-box">
       <select
+        aria-label="Switch network"
         value={network.activeChainId}
         onChange={(e) =>
           switchChain.mutate({ chainId: Number(e.target.value) })

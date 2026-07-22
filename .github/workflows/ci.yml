@@ -83,3 +83,27 @@ jobs:
         run: npm ci
       - name: "Run tests (23 tests: permissions, status, txErrors, useProjects)"
         run: npm run test
+
+  lighthouse:
+    name: Lighthouse (frontend2.0)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    # Corre en el runner limpio de GitHub, no en la maquina local de Abraham -
+    # esto evita el bug de Chrome headless (NO_FCP) confirmado como propio del
+    # entorno WSL local, no del codigo (ver 09_ROADMAP_MEJORAS.md § 7).
+    defaults:
+      run:
+        working-directory: frontend2.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: frontend2.0/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Run Lighthouse CI
+        run: npx @lhci/cli@0.15.1 autorun

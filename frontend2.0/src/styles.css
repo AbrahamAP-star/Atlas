@@ -52,7 +52,7 @@
   /* Real project tokens — do not rename. */
   --ink: oklch(0.96 0.01 80);
   --ink-muted: oklch(0.72 0.02 70);
-  --ink-dim: oklch(0.56 0.02 70);
+  --ink-dim: oklch(0.64 0.02 70);
 
   --paper: oklch(0.16 0.012 55); /* espresso base, not flat black */
   --panel: oklch(0.21 0.014 55); /* raised card surface */
@@ -131,6 +131,24 @@
   transform: translateY(0);
 }
 
+/* Above-the-fold variant: same visual effect as .reveal, but driven by a
+   plain CSS animation (compositor), not IntersectionObserver + hydration.
+   Content the user already sees without scrolling must not wait on JS to
+   paint — that was blocking FCP under throttled load. */
+@keyframes reveal-immediate-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@utility reveal-immediate {
+  animation: reveal-immediate-in var(--dur-slow) var(--ease-out-expo) both;
+}
+
 @utility card-hover {
   transition:
     transform var(--dur-base) var(--ease-out-expo),
@@ -162,9 +180,11 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  .reveal {
+  .reveal,
+  .reveal-immediate {
     opacity: 1 !important;
     transform: none !important;
+    animation: none !important;
   }
 }
 

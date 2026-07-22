@@ -18,9 +18,9 @@ Feedback de evaluación del proyecto (2026-07-19), inmediatamente después de ce
 | 3 | Tests de componentes reales (render con RTL) | 🟠 Alto | CERRADO (2026-07-20) — Opción A |
 | 4 | Tests de `TxTrackerContext`/`useTxStatus` | 🟠 Alto | CERRADO (2026-07-20) — Opción B |
 | 5 | Backend: estado en memoria → persistente | 🟡 Medio | CERRADO (2026-07-20) — Opción A |
-| 6 | `documentCID` sin mostrar en `ProjectDetail` | 🟡 Medio | PENDIENTE (ya documentado en 04/05) |
+| 6 | `documentCID` sin mostrar en `ProjectDetail` | 🟡 Medio | CERRADO (2026-07-20) — ya estaba implementado |
 | 7 | Lighthouse / validación en dispositivo real | 🟡 Medio | PENDIENTE (ya documentado en 04/06/07) |
-| 8 | README usuario final + doc técnica de arranque | 🟢 Bajo | PENDIENTE — parte del checklist de Fase 6 |
+| 8 | README usuario final + doc técnica de arranque | 🟢 Bajo | CERRADO (2026-07-22) — Opción B |
 
 ---
 
@@ -207,8 +207,9 @@ Pendiente desde el cierre de Fase 5 (`03_PLAN_FASES.md`): el documento adjunto s
 - Mostrar nombre/tipo de archivo, y si es PDF, una miniatura de la primera página (reutilizando `pdfjs-dist`, ya instalado para `documentText.ts`).
 - Más trabajo, valor cuestionable para un adjunto que de todos modos se abre en pestaña nueva.
 
-### Decisión: _(pendiente — primero confirmar si ya está cerrado)_
-### Estado: PENDIENTE
+### Decisión: ya resuelto — no aplica elegir opción A/B (2026-07-20)
+Confirmado contra `frontend2.0/src/components/ProjectDetail.tsx` real: ya renderiza `documentUrl` (de `useProjectMetadata`) como link `"view attached document"`, junto al link de `"view raw JSON"` — mismo patrón que la Opción A de este punto, implementado en la sesión "Fix (2026-07-16)" (`04_STATUS.md`). Este punto del roadmap quedó desactualizado respecto al código; no requirió ningún cambio nuevo, solo actualizar el checklist.
+### Estado: CERRADO (2026-07-20) — ya estaba implementado, sin acción nueva
 
 ---
 
@@ -230,6 +231,20 @@ El Hero/marquee tiene requisitos duros documentados (60fps, `prefers-reduced-mot
 ### Decisión: _(pendiente)_
 ### Estado: PENDIENTE
 
+**Hallazgo (2026-07-21):** Lighthouse CLI y el panel de DevTools fallan con `NO_FCP` en esta máquina específica (WSL), en cualquier modo (headless, headed, con/sin sandbox/GPU). Confirmado con Chrome DevTools Performance (CPU 4x + Slow 4G + incógnito) que la página **sí pinta correctamente** bajo esas mismas condiciones — descarta un bug real de la app. Es un problema del runner de Lighthouse en este entorno, no del código. De paso se corrigieron 2 issues reales encontrados durante la investigación (válidos independientemente de esto):
+- `Hero.tsx`/`styles.css`: el primer fold usaba `.reveal` (opacity:0 hasta que un `IntersectionObserver` dispara post-hidratación) — contenido ya visible sin scroll no debe depender de JS para pintarse. Nueva variante `.reveal-immediate` (animación CSS pura) para above-the-fold.
+- `routes/index.tsx`: `DemoSection` (que monta wagmi/viem/`AppShell`) se importaba de forma estática, metiendo todo el bundle de la dApp en el chunk crítico de la landing (349KB → ahora separado y lazy-loaded, `routes-*.js` bajó a 23KB).
+
+Medir Performance/SEO real ahora requiere: Lighthouse CI (Opción B de este punto, corre en GitHub Actions con Chrome bien configurado) o PageSpeed Insights contra una URL pública una vez exista deploy.
+
+### Implementado (2026-07-21): job `lighthouse` en `.github/workflows/ci.yml`
+Nuevo job, solo en `pull_request` (mismo patrón que `gas-report`): `npm ci` + `npm run build` en `frontend2.0`, luego `npx @lhci/cli@0.15.1 autorun` (versión verificada en npmjs.com el mismo día). `@lhci/cli` levanta `npm run preview` él mismo (`.lighthouserc.json` § `startServerCommand`) y corre Lighthouse contra ese servidor **dentro del runner de GitHub** — Chrome headless de un Ubuntu limpio, sin el problema de esta máquina.
+
+`frontend2.0/.lighthouserc.json`: umbrales de Performance/Accessibility/SEO en **`warn`, no `error`** (0.9 mínimo) — a propósito, porque nunca se consiguió un reporte real local para confirmar una línea base; una vez Abraham revise el primer resultado real en un PR, subir a `error` si los números lo justifican. `numberOfRuns: 1` (no 3-5 como recomienda LHCI para reducir varianza) para mantener el job rápido; reconsiderar si los resultados son inconsistentes entre corridas.
+
+**No se implementó** subir resultados a un dashboard propio de LHCI (servidor de LHCI) — `upload.target: "temporary-public-storage"` usa el storage temporal público de Google (gratis, sin infraestructura propia), consistente con "backend mínimo" del proyecto.
+### Estado: CERRADO (2026-07-21) — Lighthouse local sigue roto en esta máquina (ver hallazgo arriba), pero deja de ser un bloqueante: la medición real ahora vive en CI.
+
 ---
 
 ## 8. README usuario final + doc técnica de arranque — 🟢 Bajo
@@ -246,5 +261,8 @@ El Hero/marquee tiene requisitos duros documentados (60fps, `prefers-reduced-mot
 - Un `README.md` mínimo en la raíz con "cómo levantar el proyecto localmente" (contratos + frontend + backend) ahora, sin esperar a Fase 6 — útil independientemente de en qué red esté desplegado, y no compite con el trabajo pendiente de Fase 3/6.
 - El README para Claudio (no técnico) sí queda para Fase 6, porque depende de la red final de producción (URLs, direcciones de contrato reales).
 
-### Decisión: _(pendiente)_
-### Estado: PENDIENTE
+### Decisión: **Opción B — solo README técnico** (2026-07-22)
+El README de usuario final para Claudio sigue sin sentido hoy: depende de URLs/direcciones de una red de producción que todavía no existe (Fase 6 no autorizada). El técnico no tiene esa dependencia y ya era el hueco real (nadie nuevo podía levantar el repo sin leer los 10 docs).
+
+Implementado: `README.md` en la raíz (contratos, backend, frontend2.0, CI, links a `docs/`). Se detectó y corrigió un hueco real al escribirlo: `backend/.env` existe pero `backend/.env.example` **no existía en el repo** (solo se mencionaba en `04_STATUS.md`) — el comando `cp .env.example .env` documentado ahí nunca hubiera funcionado. Se creó `backend/.env.example` (mismas claves que `backend/.env`, sin el JWT real).
+### Estado: CERRADO (2026-07-22) — Opción B

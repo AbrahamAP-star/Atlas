@@ -49,3 +49,5 @@ export function DemoSection() {
     </section>
   );
 }
+
+export default DemoSection;

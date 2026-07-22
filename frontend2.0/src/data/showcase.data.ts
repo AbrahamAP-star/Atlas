@@ -5,21 +5,21 @@ import type { ShowcaseItem } from "@/types/landing";
 // build time and it stays explicit in the code which images exist at any
 // given moment. Abraham keeps adding more photos to src/assets/ and
 // completes this list by hand (docs/06_FRONTEND_VISUAL_UPGRADE.md §9.2).
-import apple18 from "@/assets/apple18-450x336.jpg";
-import baglietto46m from "@/assets/baglietto46m_c2101_r1341736.avif";
-import descarga1 from "@/assets/descarga (1).jpeg";
-import descarga2 from "@/assets/descarga (2).jpeg";
-import descarga3 from "@/assets/descarga (3).jpeg";
-import descarga4 from "@/assets/descarga (4).jpeg";
-import descarga5 from "@/assets/descarga (5).jpeg";
-import descarga0 from "@/assets/descarga.jpeg";
-import images1 from "@/assets/images (1).jpeg";
-import images2 from "@/assets/images (2).jpeg";
-import images3 from "@/assets/images (3).jpeg";
-import images4 from "@/assets/images (4).jpeg";
-import images5 from "@/assets/images (5).jpeg";
-import imagesJpeg from "@/assets/images.jpeg";
-import imagesPng from "@/assets/images.png";
+import apple18 from "@/assets/apple18-450x336.jpg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import baglietto46m from "@/assets/baglietto46m_c2101_r1341736.avif?w=640&quality=70&format=avif&withoutEnlargement=true";
+import descarga1 from "@/assets/descarga (1).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import descarga2 from "@/assets/descarga (2).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import descarga3 from "@/assets/descarga (3).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import descarga4 from "@/assets/descarga (4).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import descarga5 from "@/assets/descarga (5).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import descarga0 from "@/assets/descarga.jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import images1 from "@/assets/images (1).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import images2 from "@/assets/images (2).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import images3 from "@/assets/images (3).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import images4 from "@/assets/images (4).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import images5 from "@/assets/images (5).jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import imagesJpeg from "@/assets/images.jpeg?w=640&quality=70&format=avif&withoutEnlargement=true";
+import imagesPng from "@/assets/images.png?w=640&quality=70&format=avif&withoutEnlargement=true";
 
 // PENDING (confirm with Abraham, see docs/06_FRONTEND_VISUAL_UPGRADE.md §9.2):
 // 2 files that were in assets/ were deliberately excluded when inspecting

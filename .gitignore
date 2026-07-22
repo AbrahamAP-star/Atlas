@@ -24,3 +24,8 @@ backend/node_modules
 backend/dist
 backend/.env
 backend/data
+
+# Reportes sueltos de Lighthouse CLI corridos en local (09_ROADMAP_MEJORAS.md
+# #7): se generan en la raiz como localhost_<fecha>.report.html, no son
+# artefactos del proyecto, solo salida de una medicion puntual.
+localhost_*.report.html

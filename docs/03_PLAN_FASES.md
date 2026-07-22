@@ -38,7 +38,7 @@ Cada fase es independiente y termina en un estado funcional/testeable. No avanza
 - [x] Manejo de estados de transaccion (pending/confirming/success/error) con mensajes legibles para no-tecnicos — `useTxStatus.ts` + `TransactionStatus.tsx`
 - **Riesgo documentado (RESUELTO 2026-07-10):** `VITE_PINATA_JWT` ya no existe en el frontend. Se creo `/backend` (Express minimo) que es el unico que conoce el JWT de Pinata; el frontend le habla a el via `VITE_BACKEND_URL`. Ver `05_CRITICAL_REVIEW.md` y `04_STATUS.md` § Backend Pinata.
 - [x] Documento adjunto (PDF/texto) opcional en "Crear proyecto", subido a IPFS junto a imagen/metadata — `CreateProjectForm.tsx` + `usePinataUpload.ts` (`documentCID`), ver `04_STATUS.md` § "Mejora Fase 5 (2026-07-08)". Validacion de tipo (`application/pdf`/`text/plain`) y tamano (10 MB) en el cliente.
-- [ ] Pendiente: `ProjectDetail.tsx` aun no muestra/enlaza el `documentCID` en la vista de detalle.
+- [x] `ProjectDetail.tsx` muestra/enlaza el `documentCID` en la vista de detalle — link "view attached document" via `documentUrl` (`useProjectMetadata`), agregado en la sesion "Fix (2026-07-16)" (`04_STATUS.md`). Confirmado contra el codigo real y cerrado en `09_ROADMAP_MEJORAS.md` § 6 (2026-07-20).
 ## Fase 6 — Deploy final y documentación
 - [ ] Deploy en mainnet de la L2 elegida
 - [ ] `README.md` para usuario final (cómo conectar wallet, crear proyecto, aportar, reclamar/reembolso)

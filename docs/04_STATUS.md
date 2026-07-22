@@ -38,6 +38,7 @@ Este es un warning **genérico** que el compilador emite siempre que se importa 
 - Sin loops sobre backers (refund individual)
 - Tipos de storage: `uint96` goal/pledged, `uint40` deadline, `uint32` nextProjectId
 - Validaciones añadidas en Fase 1 (no estaban explícitas en la spec original): `goal > 0`, `durationSeconds > 0`, `msg.value > 0` en pledge, existencia de `id` en toda función que lo reciba, `SafeCast` en toda conversión `uint256 → uintN`.
+- **Idioma del código (2026-07-22): todo fuera de `/docs` en inglés** (código, nombres, comentarios, README raíz) — ver `00_PROJECT_OVERVIEW.md` § "Convención de idioma". Solo `/docs` sigue en español.
 
 ## Riesgos abiertos
 - Confirmar si el cliente quiere aportes solo en moneda nativa (ETH) o también ERC-20 (impacta `pledge`/`refund`). Asumido: solo nativo en v1.

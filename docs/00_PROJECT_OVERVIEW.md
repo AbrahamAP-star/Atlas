@@ -46,3 +46,8 @@ Repositorio único con: `/contracts`, `/frontend`, `/backend`, `/scripts`, `/tes
 
 ## Roadmap de mejoras post-review
 `09_ROADMAP_MEJORAS.md` trackea 8 puntos identificados en la evaluación del proyecto (2026-07-19: CI, cobertura de tests real de componentes/TxTracker, cierre de Fase 3, backend persistente, etc.), cada uno con opciones para decidir — no una acción ya ejecutada. Consultar antes de asumir que el proyecto está "completo" en alguna área fuera del checklist de arriba.
+
+## Convención de idioma (regla dura, no negociable — 2026-07-22)
+**Todo el contenido fuera de `/docs` va en inglés**: código, nombres de archivo, funciones, variables, tipos, comentarios en código, mensajes de commit, `README.md` de la raíz. Sin excepción, aunque Abraham pida algo en español — la traducción a inglés es responsabilidad de quien escribe el código, no una opción.
+**Solo `/docs` se mantiene en español** (este plan de ejecución y sus archivos hermanos), porque es el canal de comunicación con Abraham, no código que otros vayan a leer en internet.
+Cualquier agente que edite código debe recordar esta regla antes de escribir, no solo al leer este archivo.

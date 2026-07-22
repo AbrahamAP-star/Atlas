@@ -19,7 +19,7 @@ export function Hero() {
       />
 
       <div className="relative mx-auto flex min-h-[92vh] max-w-6xl flex-col items-center justify-center px-6 pt-28 pb-24 text-center">
-        <Reveal>
+        <Reveal immediate>
           <span
             className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs tracking-wide uppercase text-[color:var(--ink-muted)]"
             style={{ borderColor: "var(--hairline)" }}
@@ -35,7 +35,7 @@ export function Hero() {
           </span>
         </Reveal>
 
-        <Reveal delay={80}>
+        <Reveal immediate delay={80}>
           <h1 className="mt-8 max-w-4xl text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl">
             An on-chain crowdfunding dApp where funds{" "}
             <span style={{ color: "var(--accent)" }}>never get stuck</span> or
@@ -43,7 +43,7 @@ export function Hero() {
           </h1>
         </Reveal>
 
-        <Reveal delay={160}>
+        <Reveal immediate delay={160}>
           <p className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-[color:var(--ink-muted)] sm:text-lg">
             Raise capital without banks or slow centralized platforms, with
             automatic protection against bad faith — deployed, verified, and
@@ -51,7 +51,7 @@ export function Hero() {
           </p>
         </Reveal>
 
-        <Reveal delay={240}>
+        <Reveal immediate delay={240}>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <a
               href="#contacto"
