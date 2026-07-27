@@ -34,6 +34,11 @@ jobs:
     name: Gas report (comentario en el PR)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    # Sin esto, el GITHUB_TOKEN por defecto es read-only en repos nuevos y
+    # createComment() revienta con 403 al intentar comentar en el PR.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

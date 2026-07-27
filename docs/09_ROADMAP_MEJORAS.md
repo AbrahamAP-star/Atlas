@@ -237,6 +237,13 @@ El Hero/marquee tiene requisitos duros documentados (60fps, `prefers-reduced-mot
 
 Medir Performance/SEO real ahora requiere: Lighthouse CI (Opción B de este punto, corre en GitHub Actions con Chrome bien configurado) o PageSpeed Insights contra una URL pública una vez exista deploy.
 
+### Fix (2026-07-27): 2 bugs reales de CI encontrados corriendo el primer PR real
+
+Abraham corrio el primer PR real contra este workflow. Dos jobs fallaron — no por el bug de WSL ya documentado arriba, sino por 2 problemas nuevos y reales del propio `ci.yml`:
+
+1. **`gas-report` — 403 al comentar en el PR:** el workflow no declaraba `permissions:`, asi que el `GITHUB_TOKEN` por defecto (read-only en repos nuevos) no alcanzaba para `github.rest.issues.createComment(...)`. Fix: se agrego `permissions: { contents: read, pull-requests: write }` al job.
+2. **`lighthouse` — `NO_FCP` real, causa distinta al hallazgo de WSL:** el log muestra `WARNING: Timed out waiting for the server to start listening` **antes** de que `npm run preview` imprimiera `Local:` (se ve en el mismo log, unos segundos despues). LHCI dejo de esperar el patron (default `startServerReadyTimeout`: 10s) y lanzo Chrome a navegar contra un puerto que todavia no aceptaba conexiones — eso es lo que produce `NO_FCP` aqui, no un problema de la app ni de Chrome headless. El runner de GitHub es mas lento que una maquina local para el cold-start de `vite preview` justo despues de `npm ci`. Fix: `frontend2.0/.lighthouserc.json` -> `startServerReadyTimeout: 60000` (60s).
+
 ### Implementado (2026-07-21): job `lighthouse` en `.github/workflows/ci.yml`
 Nuevo job, solo en `pull_request` (mismo patrón que `gas-report`): `npm ci` + `npm run build` en `frontend2.0`, luego `npx @lhci/cli@0.15.1 autorun` (versión verificada en npmjs.com el mismo día). `@lhci/cli` levanta `npm run preview` él mismo (`.lighthouserc.json` § `startServerCommand`) y corre Lighthouse contra ese servidor **dentro del runner de GitHub** — Chrome headless de un Ubuntu limpio, sin el problema de esta máquina.
 

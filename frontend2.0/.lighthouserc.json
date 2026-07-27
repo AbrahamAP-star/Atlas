@@ -4,6 +4,7 @@
       "url": ["http://localhost:4173/"],
       "startServerCommand": "npm run preview",
       "startServerReadyPattern": "Local:",
+      "startServerReadyTimeout": 60000,
       "numberOfRuns": 1
     },
     "assert": {
