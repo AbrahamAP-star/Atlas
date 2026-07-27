@@ -252,6 +252,62 @@ Nuevo job, solo en `pull_request` (mismo patrón que `gas-report`): `npm ci` + `
 **No se implementó** subir resultados a un dashboard propio de LHCI (servidor de LHCI) — `upload.target: "temporary-public-storage"` usa el storage temporal público de Google (gratis, sin infraestructura propia), consistente con "backend mínimo" del proyecto.
 ### Estado: CERRADO (2026-07-21) — Lighthouse local sigue roto en esta máquina (ver hallazgo arriba), pero deja de ser un bloqueante: la medición real ahora vive en CI.
 
+### Fix (2026-07-28): `NO_FCP` real en el job `lighthouse` de CI (no el bug de WSL, uno nuevo)
+
+Abraham reportó el job `lighthouse` fallando en un PR real con `NO_FCP`, mismo
+código de error que el hallazgo de WSL de arriba, pero **esta vez corriendo
+en el runner limpio de GitHub Actions** — descarta de entrada que sea el
+mismo problema (ese ya quedó resuelto corriendo Lighthouse en CI en vez de
+local). Diagnóstico contra el log real del job (no se asumió nada de
+memoria):
+
+1. **El server sí arrancaba** (`Server Output` del log muestra `➜ Local:
+   http://localhost:4173/`), pero **LHCI ya había tirado el warning de
+   timeout de 60s antes de que ese output le llegara** — `npx vite preview`
+   sigue bufferizando stdout en un entorno sin TTY como CI, igual que ya se
+   documentó para `npm run preview` en la sesión 2026-07-27 de arriba; `npx`
+   agrega su propio buffering encima. El fix de ese día (cambiar `npm run
+   preview` por `npx vite preview`) resultó insuficiente, no incorrecto —
+   redujo el problema pero no lo eliminó.
+2. **Con eso resuelto, quedaba un segundo problema real:** incluso cuando
+   Chrome sí llegaba a navegar a `http://localhost:4173/`, Lighthouse tiraba
+   `NO_FCP` a los ~30s (el timeout por defecto de `maxWaitForFcp`). Causa:
+   el preset por defecto de Lighthouse simula red móvil lenta + limita CPU
+   4x — combinado con el CPU/red compartidos y variables de un runner de
+   GitHub Actions, el primer paint de una landing con bundles no triviales
+   (`index-*.js` ~336KB, `DemoSection-*.js` ~324KB, CSS ~84KB) puede superar
+   ese margen sin que sea una regresión real de performance de la app.
+
+**Fix aplicado** (`.github/workflows/ci.yml` job `lighthouse` +
+`frontend2.0/.lighthouserc.json`):
+- El server ya no lo arranca LHCI (se quitó `startServerCommand`/
+  `startServerReadyPattern`/`startServerReadyTimeout` de `.lighthouserc.json`).
+  El propio step de CI lo levanta (`npx vite preview --port 4173
+  --strictPort &`) y espera con **`wait-on http://localhost:4173/`** — hace
+  polling HTTP real contra el puerto, no parsea stdout, así que el problema
+  de buffering deja de poder afectarlo estructuralmente (no es un timeout
+  más largo, es un mecanismo de espera distinto que no depende de logs).
+- `--collect.settings.preset=desktop` (sin throttling de red/CPU) para que
+  este check de CI mida regresiones reales de la app (bundle roto, elemento
+  que deja de pintar, etc.), no la varianza de recursos del runner. Los
+  números de Performance "de verdad" en condiciones móviles se siguen
+  midiendo aparte (local, cuando el hallazgo de WSL se resuelva, o
+  PageSpeed Insights contra un deploy público real una vez exista) — este
+  job de CI nunca fue pensado como la única fuente de esos números, ver la
+  entrada de arriba.
+- `maxWaitForFcp`/`maxWaitForLoad` subidos a 45s/60s como margen adicional,
+  no como el fix principal (el fix principal es `wait-on` + preset desktop).
+
+**No verificado end-to-end desde aquí** (sin acceso de ejecución a GitHub
+Actions): Abraham debe confirmar en el próximo PR que el job pasa. Si
+`NO_FCP` persiste incluso con preset desktop, el próximo paso sería revisar
+si hay un error de hidratación real en `DemoSection`/`Hero` que descarta el
+markup SSR ya pintado — no explorado todavía porque no hay evidencia de eso
+en el log actual (el log no llega a mostrar ningún timing de FCP parcial,
+consistente con el server nunca respondiendo a tiempo, no con un error de
+hidratación en cliente).
+### Estado: CERRADO (2026-07-28) — pendiente confirmación de Abraham en el próximo PR
+
 ---
 
 ## 8. README usuario final + doc técnica de arranque — 🟢 Bajo

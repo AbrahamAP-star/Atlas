@@ -111,4 +111,32 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run Lighthouse CI
-        run: npx @lhci/cli@0.15.1 autorun
+        # Fix (2026-07-28): NO_FCP en CI, causa distinta a la ya documentada
+        # en docs/09_ROADMAP_MEJORAS.md § 7 (aquella era el buffering de
+        # stdout de "npm run preview"). Aqui el server SI llegaba a imprimir
+        # "Local:" (se ve en el log), pero LHCI ya habia dado por vencido el
+        # readiness check (60s) antes de que ese output llegara -- "npx"
+        # agrega su propio buffering encima del que ya tenia "npm run". En
+        # vez de seguir dependiendo de un regex sobre stdout (fragil), ahora
+        # arrancamos el server nosotros mismos y esperamos con "wait-on"
+        # contra el puerto HTTP real -- deterministico, sin parseo de logs.
+        # Ademas: el preset por defecto de Lighthouse simula red movil lenta
+        # + 4x CPU throttling; en un runner compartido de GitHub Actions eso
+        # puede empujar el primer paint mas alla de los 30s que Lighthouse
+        # espera antes de tirar NO_FCP. Se cambia a preset "desktop" (sin
+        # throttling) para que este check mida regresiones reales de la app,
+        # no la varianza de CPU/red del runner -- los numeros de Performance
+        # "de verdad" (mobile) se miden en local o con PageSpeed Insights
+        # contra un deploy real (ver docs/09_ROADMAP_MEJORAS.md § 7).
+        run: |
+          npx vite preview --port 4173 --strictPort &
+          SERVER_PID=$!
+          npx wait-on http://localhost:4173/ --timeout 60000
+          npx @lhci/cli@0.15.1 autorun \
+            --collect.url=http://localhost:4173/ \
+            --collect.numberOfRuns=1 \
+            --collect.settings.preset=desktop \
+            --collect.settings.maxWaitForFcp=45000 \
+            --collect.settings.maxWaitForLoad=60000 \
+            --upload.target=temporary-public-storage
+          kill $SERVER_PID
