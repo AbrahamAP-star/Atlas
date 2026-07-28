@@ -8,7 +8,7 @@ artifacts
 # direccion -- es lo que permite reproducir/verificar un deploy despues.
 # Fuente: hardhat.org/docs/tutorial/deploying ("We recommend committing the
 # ignition/deployments/<deployment-id> directories to version your
-# deployments")........
+# deployments").........................
 coverage
 coverage.json
 typechain-types
