@@ -57,11 +57,22 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // DIAGNOSTIC (temporal, 2026-07-28): NO_FCP en CI sin causa clara tras
+    // 2 fixes de infraestructura -- esto confirma si el fetch handler real
+    // llega a resolver y cuanto tarda. Quitar una vez encontrada la causa.
+    const url = request.url;
+    const start = Date.now();
+    console.log(`[DIAG] -> ${url}`);
     try {
       const handler = await getServerEntry();
+      console.log(`[DIAG] handler resuelto (+${Date.now() - start}ms) ${url}`);
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      console.log(`[DIAG] handler.fetch resuelto (+${Date.now() - start}ms) status=${response.status} ${url}`);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      console.log(`[DIAG] <- ${url} (+${Date.now() - start}ms)`);
+      return normalized;
     } catch (error) {
+      console.log(`[DIAG] EXCEPTION (+${Date.now() - start}ms) ${url}`);
       console.error(error);
       return new Response(renderErrorPage(), {
         status: 500,

@@ -111,4 +111,36 @@ jobs:
       - name: Build
         run: npm run build
       - name: Run Lighthouse CI
-        run: npx @lhci/cli@0.15.1 autorun
+        # Fix (2026-07-28): NO_FCP en CI. Primer fix (server management +
+        # wait-on + preset desktop) no lo resolvió -- el timeout se cumple
+        # EXACTO al segundo configurado (30s default, luego 45s configurado)
+        # incluso sin throttling, lo cual apunta a un hang real (una promesa
+        # que nunca resuelve), no a lentitud. Revisión manual de wagmi.ts,
+        # DemoSection/AppShell/ConnectWallet/Hero/hooks de scroll no
+        # encontró causa obvia (todo el codigo cliente-only ya esta bien
+        # guardado con useEffect). Este step ahora:
+        # 1. Corre un curl de control ANTES de Lighthouse para aislar si el
+        #    hang es del server (curl tambien cuelga) o especifico de Chrome.
+        # 2. Vuelca el log de "vite preview" al final (incluye los [DIAG]
+        #    temporales agregados en src/server.ts) para ver si el fetch
+        #    handler de TanStack Start llega a resolver.
+        run: |
+          npx vite preview --port 4173 --strictPort > /tmp/vite-preview.log 2>&1 &
+          SERVER_PID=$!
+          npx wait-on http://localhost:4173/ --timeout 60000
+          echo "--- curl de control (aisla si el hang es del server o de Chrome) ---"
+          time curl -sv --max-time 20 http://localhost:4173/ -o /tmp/curl-out.html || echo "curl fallo/timeout, exit=$?"
+          wc -c /tmp/curl-out.html || true
+          set +e
+          npx @lhci/cli@0.15.1 autorun \
+            --collect.url=http://localhost:4173/ \
+            --collect.numberOfRuns=1 \
+            --collect.settings.preset=desktop \
+            --collect.settings.maxWaitForFcp=45000 \
+            --collect.settings.maxWaitForLoad=60000 \
+            --upload.target=temporary-public-storage
+          LHCI_EXIT=$?
+          kill $SERVER_PID
+          echo "--- output de 'npx vite preview' (incluye los [DIAG] de src/server.ts) ---"
+          cat /tmp/vite-preview.log
+          exit $LHCI_EXIT
