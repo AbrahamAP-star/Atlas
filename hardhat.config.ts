@@ -45,6 +45,25 @@ export default defineConfig({
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("DEPLOYER_PRIVATE_KEY")],
     },
+    // Local Anvil node (Foundry) — used only by E2E tests (see
+    // scripts/e2e-setup.ts, frontend2.0/e2e/, docs/09_ROADMAP_MEJORAS.md §12).
+    // Never used for a real deploy: Anvil resets its whole chain state every
+    // time it starts, so this network exists purely to deploy a fresh
+    // Crowdfunding instance for a local E2E run.
+    //
+    // The private keys below are NOT secrets: they're Anvil's well-known
+    // default test accounts (derived from the public test mnemonic "test
+    // test test ... junk", documented at book.getfoundry.sh/reference/anvil)
+    // — hardcoding them (instead of configVariable/keystore) is intentional
+    // and safe. NEVER reuse these keys or this pattern for a real network.
+    anvil: {
+      type: "http",
+      chainType: "l1",
+      url: "http://127.0.0.1:8545",
+      accounts: [
+        "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", // Anvil account #0 (deployer)
+      ],
+    },
   },
   paths: {
     tests: {

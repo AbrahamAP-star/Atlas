@@ -29,3 +29,12 @@ backend/data
 # #7): se generan en la raiz como localhost_<fecha>.report.html, no son
 # artefactos del proyecto, solo salida de una medicion puntual.
 localhost_*.report.html
+
+# E2E (docs/09_ROADMAP_MEJORAS.md #12): Anvil resets its whole chain state on
+# every run, so its deployment record is never meant to be versioned (unlike
+# the real testnet deployments under deployments/ and ignition/deployments/).
+deployments/anvil.json
+ignition/deployments/anvil
+frontend2.0/.env.e2e.local
+frontend2.0/playwright-report
+frontend2.0/test-results

@@ -47,6 +47,15 @@ npm run dev              # levanta en :3001
 
 `FRONTEND_ORIGIN` en `backend/.env` debe apuntar al puerto real de `frontend2.0` (por defecto `8080`, vía `@lovable.dev/vite-tanstack-config`).
 
+**Rate limit (punto 11 de `docs/09_ROADMAP_MEJORAS.md`):** las subidas se limitan por IP **y** por wallet address combinados (`backend/src/rateLimiter.ts`), no solo por IP. Además de `PINATA_JWT`, completar `ADMIN_UNPIN_KEY` en `backend/.env` (credencial separada, usada solo por `POST /api/admin/unpin` para retirar contenido reportado):
+```bash
+cd backend
+npm run audit:uploads              # lista uploads de las ultimas 24h (CID + wallet + IP)
+curl -X POST http://localhost:3001/api/admin/unpin \
+  -H "X-Admin-Key: $ADMIN_UNPIN_KEY" -H "Content-Type: application/json" \
+  -d '{"cid":"<CID_REPORTADO>"}'
+```
+
 ## 3. Frontend (`/frontend2.0`)
 
 ```bash
@@ -58,6 +67,14 @@ npm run build && npm run preview   # build de producción local
 ```
 
 `frontend2.0/.env` ya trae la dirección del contrato en Sepolia. La dApp funcional vive embebida en `/` (sección `#demo`), no en una ruta separada — ver `docs/08_FRONTEND_MIGRATION.md`.
+
+## 4. Tests E2E (Playwright + Anvil)
+
+```bash
+npm run e2e:setup                 # raiz: levanta Anvil + deploya el contrato
+cd frontend2.0 && npm run test:e2e   # 2 specs: happy path (create/pledge/claim) + refund
+```
+Requiere Foundry (`anvil`) instalado. Detalle completo, por que no se usa Synpress/MetaMask real, y por que no corre el backend real: `frontend2.0/e2e/README.md`. Origen: `docs/09_ROADMAP_MEJORAS.md` § 12.
 
 ## CI
 

@@ -8,7 +8,8 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:gas": "REPORT_GAS=true hardhat test",
-    "clean": "hardhat clean"
+    "clean": "hardhat clean",
+    "e2e:setup": "hardhat run scripts/e2e-setup.ts"
   },
   "devDependencies": {
     "hardhat": "3.9.1",

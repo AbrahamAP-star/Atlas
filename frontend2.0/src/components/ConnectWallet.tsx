@@ -24,10 +24,13 @@ export function ConnectWallet() {
   if (!isConnected) {
     const injected =
       connectors.find((c) => c.type === "injected") ?? connectors[0];
+
     return (
       <div className="wallet-box">
         <button
-          onClick={() => injected && connect.mutate({ connector: injected })}
+          onClick={() => {
+            if (injected) connect.mutate({ connector: injected });
+          }}
           disabled={connect.isPending || !injected}
         >
           {connect.isPending ? "Connecting…" : "Connect wallet"}
@@ -35,6 +38,11 @@ export function ConnectWallet() {
         <p className="network-hint">
           Read-only mode. Connect your wallet to pledge, create, or claim.
         </p>
+        {connect.error && (
+          // Surfaces mutation failures (e.g. wallet rejected, RPC unreachable)
+          // instead of the button silently sitting there with no feedback.
+          <p className="network-hint error">{connect.error.message}</p>
+        )}
       </div>
     );
   }

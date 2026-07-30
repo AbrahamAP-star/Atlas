@@ -331,6 +331,23 @@ El archivo `backend/data/backend.sqlite` se crea solo en el primer arranque, no 
 
 **Pendiente no bloqueante:** correr `cd backend && npm install && npm run lint` (tsc --noEmit) localmente para confirmar que compila sin errores — no ejecutable desde este entorno (`better-sqlite3` es un modulo nativo, este sandbox no tiene el binario real ni acceso al filesystem de WSL).
 
+## Sesion 2026-07-29 (3): E2E Playwright + Anvil — punto 12 de `09_ROADMAP_MEJORAS.md` IMPLEMENTADO
+
+Variante propia de la Opción A del roadmap: **Playwright + Anvil, sin Synpress/MetaMask real**. `wagmi` usa `injected()` (conector EIP-1193 genérico) — automatizar la extensión real de MetaMask habría probado la UI de un tercero, no la integración frontend↔contrato que es el riesgo real (ahí ocurrieron los 2 bugs más serios del proyecto, `canClaim`/`canRefund` y `toProject`). Detalle completo de la decisión en `09_ROADMAP_MEJORAS.md` § 12.
+
+**Cambios:**
+- `hardhat.config.ts`: red `anvil` nueva (claves de prueba públicas de Anvil, no secretas).
+- `scripts/e2e-setup.ts` (nuevo) + script `npm run e2e:setup`: levanta Anvil, deploya el contrato reusando `scripts/deploy.ts`, escribe `frontend2.0/.env.e2e.local`.
+- `frontend2.0/src/wagmi.ts`/`crowdfundingConfig.ts`: chain `foundry` agregada solo bajo `VITE_E2E=true` (produccion no la ve).
+- `frontend2.0/e2e/`: `fixtures.ts` (provider EIP-1193 inyectado + mocks de red de auth/IPFS/gateway), `happy-path.spec.ts`, `refund.spec.ts`, `README.md`.
+- `frontend2.0/playwright.config.ts` + `@playwright/test@1.62.0` + script `test:e2e`.
+- `.github/workflows/ci.yml`: job `e2e` nuevo (`pull_request`, `continue-on-error: true`, instala Foundry via `foundry-rs/foundry-toolchain@v1`).
+- `.gitignore` + `README.md` (raiz) actualizados.
+
+**Ajuste de alcance no planificado originalmente:** en vez de levantar `/backend` real con Pinata, se mockean sus 4 endpoints + el gateway a nivel de red (`page.route`) — el pinning IPFS no es la capa donde ocurrieron los bugs reales, exigir credenciales reales solo para E2E en CI habria sido fragil sin aportar al objetivo.
+
+**Pendiente critico, no verificable desde este entorno:** Foundry (`anvil`) no esta instalado ni es instalable aqui (confirmado con `anvil --version` -> command not found; dominio de instalacion fuera de la red permitida del sandbox). El codigo esta escrito y revisado pero **sin ejecutar** — Abraham debe correr `npm run e2e:setup` y luego `cd frontend2.0 && npx playwright install chromium && npm run test:e2e` y confirmar el resultado real antes de dar este punto por cerrado.
+
 ## Punto de partida para Fase 6
 No iniciar hasta que Abraham de el visto bueno explicito (regla del proyecto: no avanzar de fase sin autorizacion). Checklist en `03_PLAN_FASES.md` «Fase 6»: deploy en mainnet de Base, README para usuario final, documentacion tecnica final.
 
@@ -538,6 +555,48 @@ Primera cobertura automatizada del lado frontend (`frontend2.0/`), cerrando el h
 cd frontend2.0
 npm run test
 ```
+
+## Sesion 2026-07-29: rate limit IP+address + unpin de emergencia — punto 11 de `09_ROADMAP_MEJORAS.md` CERRADO
+
+Opciones A+C del roadmap, autorizadas por Abraham. Detalle completo de la decision y el ajuste de diseno real (tabla `quota_usage_address` separada en vez de columna en `quota_usage`) en `09_ROADMAP_MEJORAS.md` § 11.
+
+- `backend/src/rateLimiter.ts`: `hasQuota(ip, address)`/`consumeQuota(ip, address)` (antes solo `ip`) — bloquea si cualquiera de los dos limites esta agotado.
+- `backend/src/db.ts`: 3 tablas nuevas (`quota_usage_address`, `upload_log`, `admin_actions`).
+- `backend/src/auditLog.ts` (nuevo): `logUpload`/`listUploadsSince`/`logAdminAction`.
+- `backend/src/auth.ts`: `requireAdminKey` (nuevo middleware).
+- `backend/src/pinata.ts`: `unpinFromIPFS(cid)` (nuevo).
+- `backend/src/index.ts`: `/api/auth/verify` usa el rate limit combinado; `/api/pin-file`/`/api/pin-json` loguean cada upload; nuevo `POST /api/admin/unpin`.
+- `backend/scripts/audit-uploads.ts` (nuevo) + script `npm run audit:uploads`.
+- `backend/.env`/`.env.example`: nueva variable `ADMIN_UNPIN_KEY` (valor real generado para el `.env` local).
+- `README.md`: seccion nueva con los comandos.
+
+**Hueco dejado explicito a proposito (no oculto):** cero tests automatizados para este cambio — `backend/` no tiene ningun framework de test instalado hoy, a diferencia de `frontend2.0` (Vitest). Instalar uno es una decision de alcance mayor que este punto puntual del roadmap; queda registrado en `09_ROADMAP_MEJORAS.md` § 11 como pendiente real, no asumido como resuelto.
+
+**Confirmado por Abraham (2026-07-29):** `npm run lint` (`tsc --noEmit`) compila sin errores. `npm run audit:uploads` corrido contra datos reales — 3 uploads listados correctamente (timestamp/kind/address/ip/cid).
+
+## Sesion 2026-07-29 (2): tests automatizados en `backend/` — hueco de punto 11 CERRADO
+
+Instalado **Vitest 4.1.10 + Supertest 7.2.2** (devDependencies, versiones verificadas en npmjs.com el mismo dia) — primera cobertura de tests de `backend/`, que hasta ahora no tenia ningun framework configurado (a diferencia de `frontend2.0`, que ya usa Vitest desde antes).
+
+**Por que Vitest y no Jest/`node:test`:** los tests de este punto necesitan mockear modulos (`pinata.ts` en el endpoint de unpin) — `vi.mock` funciona sin configuracion extra sobre TS/ESM, mientras que Jest con ESM puro requiere flags experimentales (jestjs.io/docs/ecmascript-modules) y el mock nativo de modulos de `node:test` sigue experimental (nodejs.org/api/test.html).
+
+**Cambios de testabilidad (minimos, sin tocar comportamiento real):**
+- `backend/src/index.ts`: exporta `app`; `app.listen(...)` solo corre si el archivo se ejecuta directamente (`isMainModule` via `process.argv[1] === fileURLToPath(import.meta.url)`), para poder importar `app` en tests con Supertest sin bindear un puerto real.
+- `backend/scripts/audit-uploads.ts`: mismo guard para `main()`; `parseHoursArg`/`formatRow` exportados para testearlos como funciones puras.
+
+**Tests nuevos (15 total, confirmado en verde por Abraham 2026-07-29):**
+```
+✓ scripts/audit-uploads.test.ts (5 tests) 33ms
+✓ src/rateLimiter.test.ts (5 tests) 37ms
+✓ src/admin.test.ts (5 tests) 240ms
+Test Files  3 passed (3)
+     Tests  15 passed (15)
+```
+- `backend/src/rateLimiter.test.ts`: `hasQuota`/`consumeQuota` contra un SQLite temporal (`DB_PATH` en `os.tmpdir()`) — bloqueo cruzado IP/address, case-insensitive de address, reset tras rodar la ventana (`vi.useFakeTimers`).
+- `backend/src/admin.test.ts` (Supertest + `vi.mock("./pinata.js")`): sin header, header incorrecto, header correcto (llama `unpinFromIPFS` y responde 200), `cid` faltante, fallo de Pinata (502).
+- `backend/scripts/audit-uploads.test.ts`: `parseHoursArg`/`formatRow` puros + integracion contra SQLite sembrado (`logUpload` + fila vieja insertada directo) confirmando el filtro de ventana de `listUploadsSince`.
+
+Con esto, el punto 11 de `09_ROADMAP_MEJORAS.md` queda **100% cerrado** (los 5 entregables del checklist marcados, sin huecos pendientes).
 
 ## Sesion 2026-07-19 (3): CI (GitHub Actions) — punto 1 de `09_ROADMAP_MEJORAS.md` CERRADO
 

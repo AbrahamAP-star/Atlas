@@ -48,3 +48,21 @@ export async function pinJSONToIPFS(metadata: CampaignMetadata): Promise<string>
   if (!res.ok) throw new Error(`Pinata pinJSONToIPFS failed (${res.status}).`);
   return parseIpfsHash(res);
 }
+
+/**
+ * Point 11 of docs/09_ROADMAP_MEJORAS.md: emergency "unpin" used by
+ * POST /api/admin/unpin to retire content that gets reported (illegal/abusive
+ * content inside an otherwise valid PDF/image, which MIME/size checks can't
+ * catch). Unpinning does NOT delete the bytes from the wider IPFS network if
+ * another node already pinned them, only from Abraham's Pinata account — see
+ * the caveat already documented in this same section of 05_CRITICAL_REVIEW.md
+ * about IPFS content being addressable, not owned.
+ */
+export async function unpinFromIPFS(cid: string): Promise<void> {
+  const jwt = requirePinataJwt();
+  const res = await fetch(`https://api.pinata.cloud/pinning/unpin/${cid}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${jwt}` },
+  });
+  if (!res.ok) throw new Error(`Pinata unpin failed (${res.status}).`);
+}
