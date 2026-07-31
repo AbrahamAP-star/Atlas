@@ -10,6 +10,7 @@ import { useRefund } from "@/hooks/useRefund";
 import { useDeleteProject } from "@/hooks/useDeleteProject";
 import { PledgeForm } from "./PledgeForm";
 import { TransactionStatus } from "./TransactionStatus";
+import { ContractRiskNotice } from "./ContractRiskNotice";
 import { playBackSound, playDeleteSound } from "@/lib/sounds";
 import {
   canPledgeProject,
@@ -145,12 +146,15 @@ export function ProjectDetail({ id, onBack }: Props) {
       </p>
 
       {canPledge && (
-        <PledgeForm
-          id={id}
-          address={projectStatus.address}
-          disabled={!account || !network.canInteract}
-          onConfirmed={refreshAll}
-        />
+        <>
+          <ContractRiskNotice variant="pledge" />
+          <PledgeForm
+            id={id}
+            address={projectStatus.address}
+            disabled={!account || !network.canInteract}
+            onConfirmed={refreshAll}
+          />
+        </>
       )}
 
       {canClaim && (

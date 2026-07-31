@@ -1,4 +1,4 @@
-import { sepolia, baseSepolia } from "wagmi/chains";
+import { sepolia, baseSepolia, foundry } from "wagmi/chains";
 import type { Address } from "viem";
 import { crowdfundingAbi } from "./crowdfundingAbi";
 import { wagmiConfig } from "@/wagmi";
@@ -13,6 +13,10 @@ export const crowdfundingAddresses: Record<number, Address | undefined> = {
   [sepolia.id]: import.meta.env.VITE_CROWDFUNDING_ADDRESS_SEPOLIA as
     Address | undefined,
   [baseSepolia.id]: import.meta.env.VITE_CROWDFUNDING_ADDRESS_BASE_SEPOLIA as
+    Address | undefined,
+  // Only populated by scripts/e2e-setup.ts's generated .env.e2e.local
+  // (docs/09_ROADMAP_MEJORAS.md §12) — undefined in every other build.
+  [foundry.id]: import.meta.env.VITE_CROWDFUNDING_ADDRESS_ANVIL as
     Address | undefined,
 };
 

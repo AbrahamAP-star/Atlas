@@ -140,3 +140,41 @@ jobs:
             --collect.settings.maxWaitForLoad=60000 \
             --upload.target=temporary-public-storage
           kill $SERVER_PID
+
+  e2e:
+    name: E2E (Playwright + Anvil)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    # No bloqueante todavia (docs/09_ROADMAP_MEJORAS.md § 12, mismo criterio
+    # ya usado con el job "lighthouse" en su primera version): recien nuevo,
+    # se promueve a bloqueante una vez haya corridas estables confirmadas.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+      - name: Install Foundry (Anvil)
+        uses: foundry-rs/foundry-toolchain@v1
+      - name: Install root deps (Hardhat)
+        run: npm ci
+      - name: Deploy Crowdfunding to Anvil
+        run: npm run e2e:setup
+      - name: Install frontend2.0 deps
+        working-directory: frontend2.0
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend2.0
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E specs
+        working-directory: frontend2.0
+        run: npm run test:e2e
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend2.0/playwright-report
+          retention-days: 7
+

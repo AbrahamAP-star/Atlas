@@ -11,5 +11,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/setupTests.ts"],
     globals: true,
+    // e2e/ uses Playwright's *.spec.ts (different `test`/`expect` API,
+    // requires a running browser + Anvil) — never picked up by Vitest.
+    // See docs/09_ROADMAP_MEJORAS.md §12 / e2e/README.md.
+    exclude: ["**/node_modules/**", "e2e/**"],
   },
 });

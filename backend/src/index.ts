@@ -3,11 +3,13 @@ import express, { type Request, type Response, type NextFunction } from "express
 import cors from "cors";
 import multer from "multer";
 import { verifyMessage, isAddress } from "viem";
-import { pinFileToIPFS, pinJSONToIPFS } from "./pinata.js";
+import { fileURLToPath } from "node:url";
+import { pinFileToIPFS, pinJSONToIPFS, unpinFromIPFS } from "./pinata.js";
 import { issueNonce, peekNonce, consumeNonce, buildSignMessage } from "./nonceStore.js";
 import { createSession } from "./sessionStore.js";
 import { hasQuota, consumeQuota } from "./rateLimiter.js";
-import { requireSession, type AuthenticatedRequest } from "./auth.js";
+import { requireSession, requireAdminKey, type AuthenticatedRequest } from "./auth.js";
+import { logUpload, logAdminAction } from "./auditLog.js";
 import { SESSION_TTL_MS } from "./config.js";
 
 const PORT = process.env.PORT ?? 3001;
@@ -58,8 +60,12 @@ app.post("/api/auth/verify", async (req: Request, res: Response) => {
     return;
   }
 
+  // Point 11 of docs/09_ROADMAP_MEJORAS.md: quota checked by IP AND address
+  // combined (see rateLimiter.ts) — checking only IP is trivially evaded by
+  // rotating wallets, checking only address is trivially evaded by rotating
+  // IP/VPN. Both together raise the real cost of abuse without extra UX friction.
   const ip = req.ip ?? "unknown";
-  if (!hasQuota(ip)) {
+  if (!hasQuota(ip, address)) {
     res.status(429).json({ error: "You already reached the upload limit for this time window. Try again shortly." });
     return;
   }
@@ -85,7 +91,7 @@ app.post("/api/auth/verify", async (req: Request, res: Response) => {
     return;
   }
 
-  consumeQuota(ip);
+  consumeQuota(ip, address);
   const token = createSession(address);
   res.json({ token, expiresInMs: SESSION_TTL_MS });
 });
@@ -99,6 +105,10 @@ app.post("/api/pin-file", requireSession, upload.single("file"), async (req: Aut
   }
   try {
     const cid = await pinFileToIPFS(req.file.buffer, req.file.originalname, req.file.mimetype);
+    // Audit trail (point 11): no content moderation happens here (see
+    // auditLog.ts), just a record of who uploaded what, for scripts/audit-uploads.ts
+    // and for manual review if a CID is later reported.
+    logUpload({ cid, address: req.walletAddress ?? "unknown", ip: req.ip ?? "unknown", kind: "file" });
     res.json({ cid });
   } catch (err) {
     res.status(502).json({ error: err instanceof Error ? err.message : "Error uploading to IPFS." });
@@ -108,9 +118,32 @@ app.post("/api/pin-file", requireSession, upload.single("file"), async (req: Aut
 app.post("/api/pin-json", requireSession, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const cid = await pinJSONToIPFS(req.body);
+    logUpload({ cid, address: req.walletAddress ?? "unknown", ip: req.ip ?? "unknown", kind: "json" });
     res.json({ cid });
   } catch (err) {
     res.status(502).json({ error: err instanceof Error ? err.message : "Error uploading to IPFS." });
+  }
+});
+
+// --- Emergency unpin (point 11 of docs/09_ROADMAP_MEJORAS.md) ---
+// Protected by its own credential (ADMIN_UNPIN_KEY, see auth.ts), never by a
+// wallet session. Every call is logged (success or failure) via logAdminAction
+// so a misused/leaked key is traceable — this is the minimum governance
+// mechanism the roadmap requires before exposing the backend outside localhost.
+app.post("/api/admin/unpin", requireAdminKey, async (req: Request, res: Response) => {
+  const cid = req.body?.cid as string | undefined;
+  const ip = req.ip ?? "unknown";
+  if (!cid) {
+    res.status(400).json({ error: "Missing cid." });
+    return;
+  }
+  try {
+    await unpinFromIPFS(cid);
+    logAdminAction("unpin", cid, ip);
+    res.json({ success: true, cid });
+  } catch (err) {
+    logAdminAction("unpin_failed", `${cid}: ${err instanceof Error ? err.message : String(err)}`, ip);
+    res.status(502).json({ error: err instanceof Error ? err.message : "Error unpinning from IPFS." });
   }
 });
 
@@ -120,6 +153,14 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(400).json({ error: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`[backend] Pinata proxy listening on :${PORT}`);
-});
+export { app };
+
+// Only bind a real port when run directly (`node index.js` / `tsx src/index.ts`).
+// When imported by tests (supertest), this guard keeps `app` usable without
+// occupying a port or racing other test files for it.
+const isMainModule = process.argv[1] === fileURLToPath(import.meta.url);
+if (isMainModule) {
+  app.listen(PORT, () => {
+    console.log(`[backend] Pinata proxy listening on :${PORT}`);
+  });
+}

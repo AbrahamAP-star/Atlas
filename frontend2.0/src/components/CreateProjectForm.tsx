@@ -5,6 +5,7 @@ import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { usePinataUpload } from "@/hooks/usePinataUpload";
 import { useCreateProject } from "@/hooks/useCreateProject";
 import { TransactionStatus } from "./TransactionStatus";
+import { ContractRiskNotice } from "./ContractRiskNotice";
 import { playBackSound, playSuccessSound } from "@/lib/sounds";
 import { extractTextFromFile } from "@/lib/documentText";
 
@@ -213,6 +214,7 @@ export function CreateProjectForm({ onCreated, onCancel }: Props) {
   return (
     <form className="create-form" onSubmit={handleSubmit}>
       <h2>Create project</h2>
+      <ContractRiskNotice variant="create" />
       {network.kind === "unsupported-chain" && (
         <p className="error-state">
           Unsupported network. Switch to:{" "}
