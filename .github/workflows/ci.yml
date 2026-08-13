@@ -93,9 +93,9 @@ jobs:
     name: Lighthouse (frontend2.0)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    # Corre en el runner limpio de GitHub, no en la maquina local de Abraham -
-    # esto evita el bug de Chrome headless (NO_FCP) confirmado como propio del
-    # entorno WSL local, no del codigo (ver 09_ROADMAP_MEJORAS.md § 7).
+    # Corre en el runner limpio de GitHub, no en la maquina local de Abraham.
+    # El runner remoto es la referencia para medir Lighthouse; Linux Mint local
+    # conserva un fallo independiente de Chrome/CDP que produce NO_FCP.
     defaults:
       run:
         working-directory: frontend2.0
@@ -131,15 +131,16 @@ jobs:
         run: |
           npx vite preview --port 4173 --strictPort &
           SERVER_PID=$!
-          npx wait-on http://localhost:4173/ --timeout 60000
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          npx --yes wait-on@9.1.0 http://localhost:4173/ --timeout 60000
           npx @lhci/cli@0.15.1 autorun \
             --collect.url=http://localhost:4173/ \
             --collect.numberOfRuns=1 \
             --collect.settings.preset=desktop \
             --collect.settings.maxWaitForFcp=45000 \
             --collect.settings.maxWaitForLoad=60000 \
+            --collect.settings.chromeFlags="--no-sandbox --disable-dev-shm-usage --disable-gpu" \
             --upload.target=temporary-public-storage
-          kill $SERVER_PID
 
   e2e:
     name: E2E (Playwright + Anvil)
