@@ -256,6 +256,8 @@ Nuevo job, solo en `pull_request` (mismo patrón que `gas-report`): `npm ci` + `
 
 `frontend2.0/.lighthouserc.json`: umbrales de Performance/Accessibility/SEO en **`warn`, no `error`** (0.9 mínimo) — a propósito, porque nunca se consiguió un reporte real local para confirmar una línea base; una vez Abraham revise el primer resultado real en un PR, subir a `error` si los números lo justifican. `numberOfRuns: 1` (no 3-5 como recomienda LHCI para reducir varianza) para mantener el job rápido; reconsiderar si los resultados son inconsistentes entre corridas.
 
+El archivo ya no usa `assert.preset: "lighthouse:no-pwa"`: ese preset añadía auditorías individuales con severidad `error` (`unused-javascript`, `errors-in-console`, compresión, latencia, etc.) aunque las categorías estuvieran configuradas como `warn`. El job debe medir y reportar esas oportunidades sin convertirlas accidentalmente en un bloqueo; por eso solo se mantienen las tres aserciones de categoría explícitas.
+
 **No se implementó** subir resultados a un dashboard propio de LHCI (servidor de LHCI) — `upload.target: "temporary-public-storage"` usa el storage temporal público de Google (gratis, sin infraestructura propia), consistente con "backend mínimo" del proyecto.
 ### Estado: CERRADO (2026-07-21) — Lighthouse local sigue roto en esta máquina (ver hallazgo arriba), pero deja de ser un bloqueante: la medición real ahora vive en CI.
 

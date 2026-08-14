@@ -164,7 +164,7 @@ function logBrowserActivity(page: Page, persona: string): void {
  *  deployed contract. sharedMetadataStore is fresh per test (default fixture
  *  scope), never leaks between spec files. */
 export const test = base.extend<Fixtures>({
-  sharedMetadataStore: async (_fixtures, use) => {
+  sharedMetadataStore: async ({}, use) => {
     await use(new Map());
   },
   creatorPage: async ({ browser, sharedMetadataStore }, use) => {
