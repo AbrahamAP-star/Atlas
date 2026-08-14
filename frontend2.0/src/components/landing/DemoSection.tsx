@@ -27,7 +27,7 @@ export function DemoSection() {
         </Reveal>
         <Reveal delay={80}>
           <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight sm:text-4xl">
-            The real dApp, running right here.
+            Atlas, running right here.
           </h2>
         </Reveal>
         <Reveal delay={160}>

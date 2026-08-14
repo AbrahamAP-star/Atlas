@@ -1,51 +1,41 @@
 # Smart Contract Spec — Crowdfunding.sol
- 
-## Modelo de datos (tipos ajustados al mínimo necesario)
+
+## Data model (types sized to the minimum needed)
 ```solidity
 struct Project {
     address payable creator;   // 20 bytes
-    uint96 goal;                // wei del monto MINIMO que habilita el retiro (ya no es "objetivo con deadline")
-    uint96 pledged;             // total recaudado, se actualiza tambien en refund
-    bool claimed;                // si el creador ya retiró (retiro = cierre del proyecto)
-    string metadataCID;          // referencia a IPFS (descripcion, imagen)
+    uint96 goal;                // wei of the MINIMUM amount that unlocks withdrawal (no longer "goal with deadline")
+    uint96 pledged;             // total raised, also updated on refund
+    bool claimed;                // whether creator already withdrew (withdrawal = project closes)
+    string metadataCID;          // IPFS reference (description, image)
 }
 ```
-> **Cambio de modelo (2026-07-09):** se eliminó `deadline`/duración. Un proyecto no
-> tiene fecha de cierre: sigue aceptando pledges indefinidamente, incluso después de
-> alcanzar `goal`. El creador puede llamar a `claimFunds` en cualquier momento una vez
-> alcanzada la meta — a su propia discreción, no hay cierre automático. El proyecto
-> solo deja de aceptar pledges cuando el creador finalmente reclama (`claimed == true`),
-> o cuando el propio creador lo borra (`deleteProject`, agregado 2026-07-16 — ver
-> `05_CRITICAL_REVIEW.md` § "deleteProject").
-> Ver `05_CRITICAL_REVIEW.md` § "Cambio de modelo: fin del deadline" para el detalle
-> completo de por qué se hizo y sus implicancias de seguridad.
-> Nota: `goal`/`pledged` en `uint96` asume montos en wei razonables para un crowdfunding pequeño-mediano. Si el cliente prevé campañas de cientos de miles de ETH (poco realista), subir a `uint128`. Este es exactamente el tipo de "variable interna" que el equipo puede ajustar sin tocar lógica.
- 
+> **Model change (2026-07-09):** `deadline`/duration removed. A project has no closing date: it keeps accepting pledges indefinitely, even after reaching `goal`. The creator can call `claimFunds` at any time once the goal is reached — at their own discretion, no automatic closing. A project stops accepting pledges only once the creator claims (`claimed == true`) or deletes it (`deleteProject`, added 2026-07-16 — see `05_CRITICAL_REVIEW.md` § "deleteProject").
+> `goal`/`pledged` as `uint96` assumes reasonable wei amounts for a small-to-mid crowdfunding. If campaigns of hundreds of thousands of ETH are expected (unrealistic), bump to `uint128` — exactly the kind of "internal variable" the team can adjust without touching logic.
+
 ## Storage
-- `mapping(uint256 => Project) public projects` — id incremental (`uint32` alcanza y sobra para número de proyectos).
-- `mapping(uint256 => mapping(address => uint96)) public pledges` — cuánto aportó cada wallet a cada proyecto (necesario para reembolso individual).
-## Funciones — orden de lectura (según requisito del cliente: lectura/vista primero, cambios de estado al final)
- 
-### Vistas (no modifican estado)
+- `mapping(uint256 => Project) public projects` — incremental id (`uint32` is plenty).
+- `mapping(uint256 => mapping(address => uint96)) public pledges` — per-wallet contribution per project (needed for individual refunds).
+
+## Functions — reading order (client requirement: views first, state changes last)
+
+### Views (no state change)
 - `getProject(uint256 id) external view returns (Project memory)`
 - `pledgeOf(uint256 id, address backer) external view returns (uint96)`
 - `isSuccessful(uint256 id) external view returns (bool)` — `pledged >= goal`
-- ~~`isExpired`~~ — eliminada, ya no existe deadline.
-### Cambios de estado (al final del archivo)
-- `createProject(uint96 goal, string memory metadataCID) external returns (uint256 id)`
-  - Presupuesto: **< 350,000 gas**. Un solo `SSTORE` de struct + push a mapping + evento. Ya no recibe `durationSeconds`.
-- `pledge(uint256 id) external payable nonReentrant`
-  - Presupuesto: **< 120,000 gas**. Actualiza `pledges` y `Project.pledged`. Ya no expira nunca; solo revierte si el proyecto ya fue reclamado (`ProjectClosed`).
-- `claimFunds(uint256 id) external nonReentrant`
-  - Solo `creator`, solo si `isSuccessful && !claimed`. Sin chequeo de expiración: el creador reclama cuando el mismo decide, en cualquier momento después de alcanzar la meta. Patrón pull: transfiere el total al creador.
-- `refund(uint256 id) external nonReentrant`
-  - Cualquier backer, en cualquier momento, solo si `!claimed`. Ya no depende de `isSuccessful`: es la única vía de salida para un backer que se arrepiente antes de que el creador reclame. Descuenta también de `Project.pledged` (no solo de `pledges[id][backer]`), porque el proyecto puede seguir vivo después del refund. Devuelve su propio pledge (evita el problema clásico de "un solo backer bloquea el refund de todos" al hacerlo individual, no en loop).
-- `deleteProject(uint256 id) external` **(agregado 2026-07-16)**
-  - Solo `creator`. Solo si `pledged == 0 || claimed`: no se permite si hay pledges sin reclamar, para no dejar a esos backers sin forma de recuperar su aporte. Usa `delete projects[id]` (libera gas, `creator` vuelve a `address(0)`). `pledge` trata `creator == address(0)` como proyecto cerrado (`ProjectClosed`). Justificación completa en `05_CRITICAL_REVIEW.md` § "deleteProject".
-## Por qué el contrato nunca queda bloqueado
-- No existe ninguna ruta de fondos sin salida: mientras no se reclamó, cualquier backer puede pedir `refund` en cualquier momento; una vez alcanzada la meta, el creador puede `claimFunds` cuando decida. No hay `onlyOwner` que pueda pausar retiros de forma permanente (evita "rug pull" del propio dev, que es justo lo que el cliente pidió evitar).
-- No se usa un loop sobre todos los backers para nada (evita DoS por gas si la lista crece).
-## Eventos (uno por acción relevante, requisito del cliente)
+- ~~`isExpired`~~ — removed, no deadline anymore.
+
+### State changes (end of file)
+- `createProject(uint96 goal, string memory metadataCID) external returns (uint256 id)` — budget **< 350,000 gas**. Single struct `SSTORE` + mapping push + event. No longer takes `durationSeconds`.
+- `pledge(uint256 id) external payable nonReentrant` — budget **< 120,000 gas**. Updates `pledges` and `Project.pledged`. Never expires; only reverts if the project was already claimed (`ProjectClosed`).
+- `claimFunds(uint256 id) external nonReentrant` — only `creator`, only if `isSuccessful && !claimed`. No expiry check: creator claims whenever they decide, any time after goal is reached. Pull pattern: transfers total to creator.
+- `refund(uint256 id) external nonReentrant` — any backer, any time, only if `!claimed`. No longer depends on `isSuccessful`: it's the only exit for a backer who changes their mind before the creator claims. Also decrements `Project.pledged` (not just `pledges[id][backer]`), since the project can stay alive after a refund. Returns just the caller's own pledge (avoids "one backer blocks everyone's refund" by being individual, not looped).
+- `deleteProject(uint256 id) external` **(added 2026-07-16)** — only `creator`. Only if `pledged == 0 || claimed`: disallowed while unclaimed pledges exist, so those backers keep a way to recover funds. Uses `delete projects[id]` (gas refund, `creator` resets to `address(0)`). `pledge` treats `creator == address(0)` as closed (`ProjectClosed`). Full justification in `05_CRITICAL_REVIEW.md` § "deleteProject".
+
+## Why the contract can never get stuck
+No route for funds without an exit: before claiming, any backer can `refund` at any time; once the goal is reached, the creator can `claimFunds` whenever they choose. No `onlyOwner` that can permanently pause withdrawals (avoids a "rug pull" by the dev team, exactly what the client asked to prevent). No loop over all backers anywhere (avoids gas-DoS as the backer list grows).
+
+## Events (one per relevant action, client requirement)
 ```solidity
 event ProjectCreated(uint256 indexed id, address indexed creator, uint96 goal);
 event Pledged(uint256 indexed id, address indexed backer, uint96 amount);
@@ -53,26 +43,25 @@ event FundsClaimed(uint256 indexed id, uint96 amount);
 event Refunded(uint256 indexed id, address indexed backer, uint96 amount);
 event ProjectDeleted(uint256 indexed id);
 ```
- 
-## Seguridad — checklist
-- [x] Checks-Effects-Interactions en `pledge`, `claimFunds`, `refund`
-- [x] `nonReentrant` (OZ v5.5 `ReentrancyGuard`, stateless) como segunda capa
-- [x] Sin `transfer`/`send` (evita límite 2300 gas de EIP-1884) — usar `call` + patrón pull + `require(success)`
-- [x] Sin loops sobre estructuras de tamaño no acotado
-- [x] ~~`deadline` validado contra `block.timestamp` en creación~~ — ya no aplica, no hay deadline.
-- [ ] Pendiente decidir: ¿fee de plataforma? No pedido por el cliente — no se implementa para no añadir complejidad ni superficie de ataque extra.
 
-## Implementado en Fase 1 (2026-07-05) — `contracts/Crowdfunding.sol`
-Esta spec quedó incompleta en varios puntos que se detectaron escribiendo el contrato real; documentados también en `05_CRITICAL_REVIEW.md`:
+## Security checklist
+- [x] Checks-Effects-Interactions in `pledge`/`claimFunds`/`refund`
+- [x] `nonReentrant` (OZ v5.5 `ReentrancyGuard`, stateless) as defense in depth
+- [x] No `transfer`/`send` (avoids EIP-1884's 2300-gas limit) — `call` + pull pattern + `require(success)`
+- [x] No loops over unbounded structures
+- [x] ~~`deadline` validated against `block.timestamp` on creation~~ — n/a, no deadline anymore.
+- [ ] Pending decision: platform fee? Not requested by client — not implemented, avoids extra complexity/attack surface.
 
-- **`ReentrancyGuardTransient`** en vez de `ReentrancyGuard` clásico (ver justificación en `01_ARCHITECTURE.md`) — mismo modifier `nonReentrant`, drop-in.
-- **`SafeCast`** en toda conversión `uint256 → uint96`/`uint40` (`msg.value.toUint96()`, cálculo de `deadline`). Sin esto, un valor que excede el rango se truncaba en silencio en vez de revertir.
-- **Validaciones nuevas, no explícitas en esta spec original:**
-  - `goal > 0` (`InvalidGoal`) — con `goal == 0` el proyecto sería "exitoso" (`pledged >= goal`) sin haber recibido fondos.
-  - `msg.value > 0` en `pledge` (`ZeroPledge`) — evita ruido de eventos sin aporte real.
-  - Existencia de `id` (`ProjectNotFound`) en `getProject`, `isSuccessful`, `pledge`, `claimFunds`, `refund` — un `id` inexistente devolvía un struct en cero, y `0 >= 0` hacía que `isSuccessful` diera `true` para proyectos que nunca existieron.
-  - **(2026-07-09) `durationSeconds`/`InvalidDuration` eliminados** junto con todo el concepto de deadline, ver `05_CRITICAL_REVIEW.md`. `pledge` ahora solo rechaza con `ProjectClosed` si el proyecto ya fue reclamado.
-- **Errores personalizados (`error X()`)** en vez de `require(string)` en toda la spec — más baratos en gas, relevante para 350k/120k.
-- `metadataCID` recibido como `calldata` (no `memory`) en `createProject`: al ser un string externo que solo se guarda, evita la copia extra a memoria.
+## Implemented in Phase 1 (2026-07-05) — `contracts/Crowdfunding.sol`
+Gaps found only while writing the real contract (also documented in `05_CRITICAL_REVIEW.md`):
+- **`ReentrancyGuardTransient`** instead of classic `ReentrancyGuard` (see `01_ARCHITECTURE.md`) — same `nonReentrant` modifier, drop-in.
+- **`SafeCast`** on every `uint256 → uint96`/`uint40` conversion (`msg.value.toUint96()`, deadline calc). Without it, an out-of-range value silently truncated instead of reverting.
+- **New validations, not explicit in the original spec:**
+  - `goal > 0` (`InvalidGoal`) — `goal == 0` would make a project "successful" (`pledged >= goal`) with zero funds raised.
+  - `msg.value > 0` in `pledge` (`ZeroPledge`) — avoids event noise with no real contribution.
+  - Existence of `id` (`ProjectNotFound`) in `getProject`, `isSuccessful`, `pledge`, `claimFunds`, `refund` — a nonexistent `id` used to return a zeroed struct, and `0 >= 0` made `isSuccessful` return `true` for projects that never existed.
+  - **(2026-07-09) `durationSeconds`/`InvalidDuration` removed** along with the whole deadline concept, see `05_CRITICAL_REVIEW.md`. `pledge` now only reverts with `ProjectClosed` if the project was already claimed.
+- **Custom errors (`error X()`)** instead of `require(string)` throughout — cheaper gas, relevant to the 350k/120k budget.
+- `metadataCID` received as `calldata` (not `memory`) in `createProject`: an external string that's only stored, avoiding an extra memory copy.
 
-Detalle completo del código, tests y estado: ver `04_STATUS.md`.
+Full code/test/status detail: `04_STATUS.md`.

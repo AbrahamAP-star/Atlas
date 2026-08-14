@@ -1,127 +1,50 @@
-# Guía de usuario — Plataforma de financiación de Abraham
+# User Guide — Abraham's Funding Platform
 
-Esta guía es para usar la plataforma sin conocimientos técnicos. Si algo no
-funciona como se describe aquí, contactar a Abraham.
+This guide is for using the platform with no technical background. If anything doesn't work as described here, contact Abraham.
 
-## Estado actual: red de pruebas (Sepolia), no la red final
+## Current state: testnet (Sepolia), not the final network
+This guide describes the platform **as it works today, on the Sepolia test network** — not the final production version. Until deployed to the final network (Base, see `04_STATUS.md`), the ETH used here **has no real value** — it's only for testing that everything works before real money moves. Once the final deploy exists, this guide will be updated with the real contract address and links.
 
-Esta guía describe la plataforma **tal como funciona hoy, en la red de
-pruebas Sepolia** — no la versión final de producción. Mientras el proyecto
-no se despliegue en la red definitiva (Base, ver `04_STATUS.md`), el ETH que
-se usa aquí **no tiene valor real**, es solo para probar que todo funciona
-correctamente antes de mover dinero de verdad. Cuando exista el despliegue
-final, esta guía se actualizará con la dirección del contrato y los enlaces
-reales.
+## What this is, in one sentence
+A platform for creating crowdfunding campaigns where contributed money is held in a smart contract (public blockchain code), not a bank account or a person's control — nobody, not even the team who built it, can touch those funds except according to rules fixed in advance (see "How this protects your money" below).
 
-## Qué es esto, en una frase
+## Before you start
+1. **Install a wallet.** [MetaMask](https://metamask.io) recommended (browser extension or mobile app), free, where you hold ETH and sign transactions.
+2. **Get test ETH (Sepolia).** While on the test network, the ETH you need is free from a faucet (e.g. `sepoliafaucet.com` or Google Cloud's official Sepolia faucet). Never use real money for this.
+3. **Set MetaMask to the Sepolia network.** MetaMask already includes Sepolia among its test networks (enable "show test networks" in Settings → Advanced if not visible).
 
-Una plataforma para crear campañas de financiación colectiva donde el dinero
-aportado queda guardado en un contrato inteligente (código público en la
-blockchain), no en una cuenta bancaria ni en manos de una persona — nadie,
-ni siquiera el equipo que construyó esto, puede tocar esos fondos salvo
-según las reglas ya fijadas de antemano (ver "Cómo protege esto tu dinero"
-más abajo).
+## 1. Connect your wallet
+Find the **"Connect wallet"** button at the top of the site. MetaMask will ask you to confirm the connection — check the site is correct and accept. If your wallet is on a different network than Sepolia, the site will warn you and ask you to switch.
 
-## Antes de empezar
+## 2. Create a project (campaign)
+1. Click **"+ New project"**.
+2. Fill in: title, description, an optional image, and an optional attached document (PDF or text — e.g. a business plan).
+3. Set the **goal** in ETH: the minimum amount you need to raise before you can withdraw funds.
+4. Confirm the transaction in your wallet. This has a small "gas" cost (the network fee, not a platform charge) — free on Sepolia since test ETH has no real value.
 
-1. **Instalar una wallet.** Se recomienda [MetaMask](https://metamask.io)
-   (extensión de navegador o app móvil). Es gratis y es donde vas a guardar
-   tu ETH y firmar tus transacciones.
-2. **Conseguir ETH de prueba (Sepolia).** Mientras la plataforma esté en la
-   red de pruebas, el ETH que necesitás es gratuito, se pide en un "faucet"
-   (grifo) como `sepoliafaucet.com` o el faucet oficial de Google Cloud para
-   Sepolia. No uses dinero real para esto.
-3. **Configurar MetaMask en la red Sepolia.** MetaMask ya trae Sepolia entre
-   sus redes de prueba disponibles (activar "mostrar redes de prueba" en
-   Configuración → Avanzado si no aparece).
+**Important:** this project **has no deadline**. It keeps accepting contributions indefinitely, even after reaching the goal, until you decide to withdraw funds ("Claim funds"). See the warnings section below for what this means in practice.
 
-## 1. Conectar tu wallet
+## 3. Contribute to a project (pledge)
+1. Open the project's detail page.
+2. Enter the ETH amount you want to contribute and confirm in your wallet.
+3. Your contribution is recorded on the contract — watch the goal progress bar update on the project's page.
 
-Al entrar al sitio, buscá el botón **"Connect wallet"** en la parte superior.
-MetaMask te va a pedir confirmar la conexión — revisá que el sitio sea el
-correcto y aceptá. Si tu wallet está en una red distinta a Sepolia, el sitio
-te va a avisar y pedirte que cambies de red.
+## 4. Withdraw funds as a creator (Claim funds)
+The **"Claim funds"** button only appears if: you're the project's creator, the goal was reached (or exceeded), and you haven't already withdrawn. On confirming, the full raised amount transfers to your wallet in one transaction. Once you withdraw, the project closes: no new contributions accepted.
 
-## 2. Crear un proyecto (campaña)
+## 5. Request a refund (Request refund)
+If you contributed and change your mind, you can request a refund **at any time**, as long as the creator hasn't withdrawn funds yet (no need to wait for the campaign to "fail" — it's your decision). The **"Request refund"** button appears automatically on a project's detail page if you have an active contribution there.
 
-1. Hacé clic en **"+ Nuevo proyecto"**.
-2. Completá: título, descripción, una imagen (opcional) y un documento
-   adjunto (opcional, PDF o texto — por ejemplo un plan de negocio).
-3. Definí la **meta** en ETH: el monto mínimo que necesitás recaudar para
-   poder retirar los fondos.
-4. Confirmá la transacción en tu wallet. Esto tiene un pequeño costo de "gas"
-   (la comisión de la red, no un cobro de la plataforma) — en Sepolia es
-   gratis porque el ETH de prueba no vale dinero real.
+## 6. Delete a project (Delete project)
+As a creator, you can delete your own project if: nobody has contributed anything yet, OR you already withdrew funds (`Claim funds` already done). If there are unclaimed contributions, the platform **does not allow** deletion — guaranteeing nobody loses the chance to request a refund.
 
-**Importante:** este proyecto **no tiene fecha límite**. Sigue aceptando
-aportes indefinidamente, incluso después de llegar a la meta, hasta que vos
-mismo decidas retirar los fondos ("Claim funds"). Ver la sección de
-advertencias más abajo sobre qué significa esto en la práctica.
+## How this protects your money
+The contract holds the funds, not a person or company — neither Abraham nor Claudio can move, freeze, or withdraw another project's money. There's always an exit: as long as funds aren't claimed, anyone who contributed can request a refund whenever they want. Everything is publicly recorded on the blockchain — anyone can independently verify a project's contributions and withdrawals.
 
-## 3. Aportar a un proyecto (pledge)
+## Important warnings (read before using real money)
+- **This contract has no "pause button" and no way to reverse a transaction.** A deliberate security decision (so nobody, not even the team, can lock the funds), but it also means that if a critical bug is ever found after launching on the final network, there's no way to "freeze" the contract while it's fixed — the only real protection is requesting your own refund in time. The site shows this warning on the create-project and pledge forms.
+- **No deadline.** A project stays alive indefinitely until the creator withdraws funds. If you contributed to a project and a long time passed with no new activity, the site will show a notice — but the refund is always available whether or not that notice appears.
+- **Transactions are irreversible.** Once confirmed in your wallet, an operation can't be undone. Double-check amounts before confirming.
 
-1. Entrá al detalle del proyecto que te interesa.
-2. Ingresá el monto en ETH que querés aportar y confirmá en tu wallet.
-3. Tu aporte queda registrado en el contrato — podés ver el progreso de la
-   meta actualizarse en la barra de la página del proyecto.
-
-## 4. Retirar los fondos como creador (Claim funds)
-
-El botón **"Claim funds"** solo aparece si:
-- Sos el creador del proyecto, y
-- Se alcanzó la meta (o se superó), y
-- Todavía no retiraste los fondos antes.
-
-Al confirmar, el total recaudado se transfiere a tu wallet en una sola
-transacción. Una vez que retirás, el proyecto queda cerrado: ya no acepta
-nuevos aportes.
-
-## 5. Pedir un reembolso (Request refund)
-
-Si aportaste a un proyecto y te arrepentís, podés pedir tu reembolso **en
-cualquier momento**, siempre que el creador todavía no haya retirado los
-fondos (no hace falta esperar a que "falle" la campaña — es tu decisión).
-El botón **"Request refund"** aparece automáticamente en el detalle del
-proyecto si tenés un aporte activo ahí.
-
-## 6. Eliminar un proyecto (Delete project)
-
-Como creador, podés eliminar un proyecto propio si:
-- todavía nadie aportó nada, o
-- ya retiraste los fondos (`Claim funds` ya hecho).
-
-Si hay aportes sin reclamar, la plataforma **no permite** eliminarlo — así
-se garantiza que nadie pierda la posibilidad de pedir su reembolso.
-
-## Cómo protege esto tu dinero
-
-- El contrato guarda los fondos, no una persona ni una empresa. Ni Abraham
-  ni Claudio pueden mover, congelar o retirar el dinero de otro proyecto.
-- Siempre existe una salida: mientras no se reclamó, cualquiera que aportó
-  puede pedir su reembolso cuando quiera.
-- Todo queda registrado públicamente en la blockchain — cualquiera puede
-  verificar los aportes y retiros de un proyecto de forma independiente.
-
-## Advertencias importantes (leer antes de usar dinero real)
-
-- **Este contrato no tiene "botón de pausa" ni forma de revertir una
-  transacción.** Es una decisión de seguridad deliberada (para que nadie,
-  ni el propio equipo, pueda bloquear los fondos), pero también significa
-  que si alguna vez se encuentra un error crítico después de lanzar en la
-  red definitiva, no hay forma de "congelar" el contrato mientras se
-  soluciona — la única protección real es que vos mismo pidas tu reembolso
-  a tiempo. El sitio muestra este aviso en el formulario de crear proyecto y
-  de aportar.
-- **No hay fecha límite.** Un proyecto sigue vivo indefinidamente hasta que
-  el creador retira los fondos. Si aportaste a un proyecto y pasó mucho
-  tiempo sin actividad nueva, el sitio te va a mostrar un aviso — pero el
-  reembolso siempre está disponible, tengas o no ese aviso.
-- **Las transacciones son irreversibles.** Una vez confirmada una operación
-  en tu wallet, no se puede deshacer. Revisá bien los montos antes de
-  confirmar.
-
-## ¿Dónde pedir ayuda?
-
-Contactar a Abraham por el canal ya acordado. Si el problema es sobre una
-transacción específica, tener a mano el "hash" de la transacción (aparece
-en pantalla tras confirmar) ayuda mucho a diagnosticar más rápido.
+## Where to get help?
+Contact Abraham through the already-agreed channel. If the issue involves a specific transaction, having the transaction "hash" on hand (shown on screen after confirming) helps diagnose it much faster.

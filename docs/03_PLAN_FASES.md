@@ -1,74 +1,71 @@
-# Plan de ejecución por fases
- 
-Cada fase es independiente y termina en un estado funcional/testeable. No avanzar de fase sin marcar los checks.
- 
-## Fase 0 — Setup del repo
-- [x] `npx hardhat init` (TypeScript template)
-- [x] Instalar OZ v5.5.x, wagmi, viem, @tanstack/react-query (versiones fijas, sin `^`) — instalado OZ 5.6.1 (compatible)
-- [x] Estructura de carpetas: `/contracts`, `/scripts`, `/test`, `/frontend`, `/docs`
-- [x] Gestión de secretos: **Hardhat 3 keystore** (`npx hardhat keystore set <VAR>`) en vez de `.env`/`.env.example` (obsoleto, retirado 2026-07-07 — ver `04_STATUS.md`)
-## Fase 1 — Smart contract core — **CERRADA (2026-07-06)**
-- [x] Escribir `Crowdfunding.sol` según `02_SMART_CONTRACT_SPEC.md`
-- [x] Compilar sin errores — `npm run compile` OK; único output es un warning genérico de OZ sobre transient storage, evaluado y confirmado seguro (ver `04_STATUS.md`)
-- [x] Tests unitarios: crear proyecto, pledge exitoso, pledge tras deadline (debe revertir), claim exitoso, claim sin éxito (debe revertir), refund individual — `test/Crowdfunding.ts`, **17/17 pasando**
-- [x] Asserts de gas incluidos en los tests (`<350k` crear, `<120k` pledge) — pasan; reporte legible de `test:gas` queda como pendiente menor no bloqueante
-## Fase 2 — Seguridad y edge cases — **CERRADA (2026-07-07)**
-- [x] Test de reentrancy (mock de atacante) — `contracts/mocks/ReentrancyAttacker.sol` + `test/ReentrancyAttack.ts`, cubre `refund` y `claimFunds`
-- [x] Test de fuzzing básico en montos (`goal = 0`, `durationSeconds = 0`) — cubierto en Fase 1 (`InvalidGoal`/`InvalidDuration`) + `test/PledgeFuzz.ts` (fuzz de `msg.value`, bordes de `uint96`, borde exacto de `deadline`)
-- [x] Revisión manual checklist de `02_SMART_CONTRACT_SPEC.md` — ver `05_CRITICAL_REVIEW.md` § "Revisión manual — Fase 2"
-- [x] Slither — ejecutado el 2026-07-07 (instalado vía pip en el entorno de análisis). 19 hallazgos en 6 detectores, ninguno crítico ni accionable (ruido de librería OZ o patrones ya justificados). Ver tabla completa en `05_CRITICAL_REVIEW.md` § "Slither — ejecutado (2026-07-07)". No se modificó código a raíz de esto.
-## Fase 3 — Deploy en L2 testnet — **Deploy en Sepolia (L1) hecho; deploy real en Base Sepolia (L2, objetivo real) pendiente por fondos**
-- [x] Script de deploy (`scripts/deploy.ts`) parametrizado por red — usa Hardhat Ignition (`ignition/modules/Crowdfunding.ts`) via `hre.network.create()` + `connection.ignition.deploy(...)`; escribe la direccion desplegada en `deployments/<network>.json`
-- [x] Config de verificación agregada a `hardhat.config.ts` (`verify.etherscan.apiKey`, Basescan/Etherscan V2)
-- [x] `.gitignore` corregido: ya no ignora `ignition/deployments/` (Hardhat recomienda versionarlo)
-- [x] Soporte añadido para Ethereum Sepolia (L1 testnet) vía nodo Infura en `hardhat.config.ts` (red `sepolia`, `chainType: "l1"`) — a pedido de Abraham, como red testnet adicional a Base Sepolia. Reutiliza `DEPLOYER_PRIVATE_KEY` y `BASESCAN_API_KEY` (Etherscan V2 es multichain); nueva variable `SEPOLIA_RPC_URL` añadida a `.env.example`. `scripts/deploy.ts` no necesitó cambios: ya es agnóstico a la red vía `hre.network.create()` + `--network`.
-- [x] Deploy real en Ethereum Sepolia (L1) ejecutado por Abraham (2026-07-07) con `scripts/deploy.ts --network sepolia` — dirección en `deployments/sepolia.json`. Nota: no es la red objetivo de la arquitectura (`01_ARCHITECTURE.md` asume L2), se usó como alternativa porque Base Sepolia aún no tenía fondos de testnet.
-- [ ] Deploy real en Base Sepolia — sigue pendiente, **requiere que Abraham lo corra él mismo** cuando tenga ETH de testnet en esa red, con `npx hardhat run scripts/deploy.ts --network baseSepolia`.
-- [ ] Verificar contrato en el explorador de bloques (Etherscan para el deploy de Sepolia ya hecho, Basescan cuando se despliegue en Base Sepolia) — pendiente de que Abraham corra `npx hardhat verify`.
-## Fase 4 — Frontend base — **CERRADA (2026-07-08)**
-- [x] Setup React + TS + Vite + shadcn/ui + Wagmi + Viem + WagmiProvider + QueryClientProvider — `/frontend`, package.json con versiones fijas (React 19.2.7, wagmi 3.6.17, viem 2.54.1, @tanstack/react-query 5.101.2, vite 8.1.3)
-- [x] Conexión de wallet (MetaMask / EIP-6963) — `connectors: [injected()]` en `src/wagmi.ts`, componente `ConnectWallet.tsx` con selector de red (Base Sepolia / Sepolia)
-- [x] Listado de proyectos — `useProjects` (`src/hooks/useProjects.ts`) lee `nextProjectId` y hace batch de `getProject` con `useReadContracts` (multicall), sin depender de logs de eventos
-- [x] Detalle de un proyecto individual — `ProjectDetail.tsx`, lectura directa con `useReadContract(getProject)`
-## Fase 5 — Frontend acciones — **CERRADA (2026-07-08)**
-- [x] Formulario crear proyecto (incluye subida a IPFS del metadata antes de llamar al contrato) — `CreateProjectForm.tsx` + `usePinataUpload.ts`
-- [x] Boton "pledge" con `useWriteContract` — `PledgeForm.tsx` + `usePledge.ts`
-- [x] Boton "claim" (visible solo al creador si aplica) — `ProjectDetail.tsx` + `useClaimFunds.ts`
-- [x] Boton "refund" (visible solo si el proyecto fallo y el usuario tiene pledge) — `ProjectDetail.tsx` + `useRefund.ts`
-- [x] Manejo de estados de transaccion (pending/confirming/success/error) con mensajes legibles para no-tecnicos — `useTxStatus.ts` + `TransactionStatus.tsx`
-- **Riesgo documentado (RESUELTO 2026-07-10):** `VITE_PINATA_JWT` ya no existe en el frontend. Se creo `/backend` (Express minimo) que es el unico que conoce el JWT de Pinata; el frontend le habla a el via `VITE_BACKEND_URL`. Ver `05_CRITICAL_REVIEW.md` y `04_STATUS.md` § Backend Pinata.
-- [x] Documento adjunto (PDF/texto) opcional en "Crear proyecto", subido a IPFS junto a imagen/metadata — `CreateProjectForm.tsx` + `usePinataUpload.ts` (`documentCID`), ver `04_STATUS.md` § "Mejora Fase 5 (2026-07-08)". Validacion de tipo (`application/pdf`/`text/plain`) y tamano (10 MB) en el cliente.
-- [x] `ProjectDetail.tsx` muestra/enlaza el `documentCID` en la vista de detalle — link "view attached document" via `documentUrl` (`useProjectMetadata`), agregado en la sesion "Fix (2026-07-16)" (`04_STATUS.md`). Confirmado contra el codigo real y cerrado en `09_ROADMAP_MEJORAS.md` § 6 (2026-07-20).
-## Fase 6 — Deploy final y documentación
-- [ ] Deploy en mainnet de la L2 elegida — **bloqueado a propósito**: sin fondos aún, pendiente de aviso explícito de Abraham (ver `04_STATUS.md`).
-- [x] `README.md` para usuario final (cómo conectar wallet, crear proyecto, aportar, reclamar/reembolso) — `docs/11_USER_GUIDE.md` (2026-08-04), describe la Sepolia actual, se actualizará con la dirección real cuando exista deploy en mainnet.
-- [x] Documentación técnica final (arquitectura, decisiones, cómo correr el proyecto localmente) — ya cubierta por `README.md` (raíz, traducido a inglés en esta sesión) + `01_ARCHITECTURE.md`/`05_CRITICAL_REVIEW.md`/`08_FRONTEND_MIGRATION.md`; sin huecos nuevos detectados.
-- [x] Actualizar `04_STATUS.md` — ver sesión 2026-08-04.
-## Fase 7 (futuro, NO ahora) — Crecimiento
-- Fees de plataforma, multi-token (ERC-20 además de nativo), gobernanza, sistema de reputación de creadores, indexador (The Graph) para no depender solo de eventos on-chain.
+# Execution Plan by Phases
 
-## Roadmap de mejoras post-review (transversal, no reemplaza estas fases)
-Ver `09_ROADMAP_MEJORAS.md`: 8 puntos identificados en la evaluación del proyecto del 2026-07-19 (CI, tests de componentes/TxTracker, deploy Base Sepolia, backend persistente, etc.), cada uno con opciones para que Abraham decida — no compite con el orden de fases de este documento, se ejecuta bajo demanda como `06_FRONTEND_VISUAL_UPGRADE.md`.
+Each phase is independent and ends in a functional/testable state. Don't advance a phase without checking its boxes.
 
-## Mejora visual del frontend (transversal, no es una fase más en esta lista)
-Ver `06_FRONTEND_VISUAL_UPGRADE.md`: mapa de referencia para agentes IA con animaciones/hovers/glow/elevación y el stack recomendado (GSAP, tokens de diseño, etc.). Se activa bajo demanda de Abraham sobre componentes ya existentes de Fase 4/5, no bloquea ni reordena Fases 3/6.
+## Phase 0 — Repo setup
+- [x] `npx hardhat init` (TS template)
+- [x] Install OZ v5.5.x, wagmi, viem, @tanstack/react-query (pinned versions, no `^`) — installed OZ 5.6.1 (compatible)
+- [x] Folder structure: `/contracts`, `/scripts`, `/test`, `/frontend`, `/docs`
+- [x] Secrets management: **Hardhat 3 keystore** (`npx hardhat keystore set <VAR>`) instead of `.env`/`.env.example` (deprecated, retired 2026-07-07 — see `04_STATUS.md`)
 
-**Pendiente planificado (2026-07-10, no ejecutado):** Hero de landing con 3 carruseles infinitos (§9 de `06_FRONTEND_VISUAL_UPGRADE.md`). Introduce, a pedido explícito de Abraham, la adopción de **Tailwind CSS v4 + shadcn/ui** (hasta ahora fuera del stack) — única excepción deliberada al criterio de "no agregar dependencias sin necesidad técnica real" que guía el resto de este plan, justificada por motivo de aprendizaje. Detalle en `04_STATUS.md` y `06_FRONTEND_VISUAL_UPGRADE.md` §9.
+## Phase 1 — Smart contract core — **CLOSED (2026-07-06)**
+- [x] `Crowdfunding.sol` per `02_SMART_CONTRACT_SPEC.md`
+- [x] Compiles clean — `npm run compile` OK; only output is a generic OZ transient-storage warning, evaluated and confirmed safe (see `04_STATUS.md`)
+- [x] Unit tests: create project, successful pledge, pledge past deadline (must revert), successful claim, unsuccessful claim (must revert), individual refund — `test/Crowdfunding.ts`, **17/17 passing**
+- [x] Gas asserts in tests (`<350k` create, `<120k` pledge) — passing; a readable `test:gas` report remains a minor non-blocking pending item
 
-## Nota de arquitectura (2026-07-17): migracion de frontend a TanStack Start
-`frontend/` (Vite SPA) fue reemplazado por `frontend2.0/` (TanStack Start,
-SSR + routing por archivos) como frontend oficial del repo. Motivo: mejor
-mantenimiento a futuro si la dApp crece (routing por archivos en vez de un
-unico `useState` de vistas, SSR para la landing publica). Ninguna fase de
-este plan cambia de alcance por esto: es un cambio de contenedor/routing, no
-de logica de negocio (contrato, IPFS, tracking de tx se migraron 1:1). Detalle
-tecnico completo: `docs/08_FRONTEND_MIGRATION.md`.
+## Phase 2 — Security & edge cases — **CLOSED (2026-07-07)**
+- [x] Reentrancy test (attacker mock) — `contracts/mocks/ReentrancyAttacker.sol` + `test/ReentrancyAttack.ts`, covers `refund` and `claimFunds`
+- [x] Basic fuzzing on amounts (`goal = 0`, `durationSeconds = 0`) — covered in Phase 1 (`InvalidGoal`/`InvalidDuration`) + `test/PledgeFuzz.ts` (fuzzing `msg.value`, `uint96` edges, exact `deadline` boundary)
+- [x] Manual checklist review of `02_SMART_CONTRACT_SPEC.md` — see `05_CRITICAL_REVIEW.md` § "Manual review — Phase 2"
+- [x] Slither — run 2026-07-07 (installed via pip in the analysis environment). 19 findings across 6 detectors, none critical/actionable (OZ library noise or already-justified patterns). Full table in `05_CRITICAL_REVIEW.md`. No code changes made.
 
-**Actualizacion (2026-07-18):** la carpeta `frontend/` (Vite SPA vieja) fue
-eliminada del repo. Ya no existe ni como referencia historica en disco. La
-dApp funcional tampoco vive en una ruta separada (`/app`) dentro de
-`frontend2.0/`: se embebio como seccion `#demo` de la landing (`/`). Ver
-`docs/08_FRONTEND_MIGRATION.md` § "Sesion 2026-07-18".
+## Phase 3 — L2 testnet deploy — **Sepolia (L1) deploy done; real Base Sepolia (L2, real target) pending funds**
+- [x] Deploy script (`scripts/deploy.ts`) parametrized by network — uses Hardhat Ignition (`ignition/modules/Crowdfunding.ts`) via `hre.network.create()` + `connection.ignition.deploy(...)`; writes the deployed address to `deployments/<network>.json`
+- [x] Verification config in `hardhat.config.ts` (`verify.etherscan.apiKey`, Basescan/Etherscan V2)
+- [x] `.gitignore` fixed: no longer ignores `ignition/deployments/` (Hardhat recommends versioning it)
+- [x] Ethereum Sepolia (L1 testnet) support added via Infura node in `hardhat.config.ts` (network `sepolia`, `chainType: "l1"`) — requested by Abraham as an extra testnet alongside Base Sepolia. Reuses `DEPLOYER_PRIVATE_KEY`/`BASESCAN_API_KEY` (Etherscan V2 is multichain); new var `SEPOLIA_RPC_URL` added. `scripts/deploy.ts` needed no changes: already network-agnostic via `hre.network.create()` + `--network`.
+- [x] Real deploy on Ethereum Sepolia (L1) executed by Abraham (2026-07-07) with `scripts/deploy.ts --network sepolia` — address in `deployments/sepolia.json`. Note: not the architecture's target network (`01_ARCHITECTURE.md` assumes L2), used as a fallback since Base Sepolia had no testnet funds yet.
+- [ ] Real Base Sepolia deploy — still pending, **Abraham must run this himself** once he has testnet ETH there, via `npx hardhat run scripts/deploy.ts --network baseSepolia`.
+- [ ] Verify contract on block explorer (Etherscan for the Sepolia deploy already done; Basescan once Base Sepolia deploys) — pending `npx hardhat verify`.
 
-## Nota de corrección (Fase 1, 2026-07-05)
-El stack de testing real de este repo es **Hardhat 3 + `node:test` + viem + `hardhat-viem-assertions`**, no "Hardhat + Chai" como asumía este plan originalmente. Ver detalle en `01_ARCHITECTURE.md`. Estado detallado y próximos pasos siempre en `04_STATUS.md`.
+## Phase 4 — Frontend base — **CLOSED (2026-07-08)**
+- [x] React+TS+Vite+shadcn/ui+Wagmi+Viem+WagmiProvider+QueryClientProvider setup — `/frontend`, pinned versions (React 19.2.7, wagmi 3.6.17, viem 2.54.1, @tanstack/react-query 5.101.2, vite 8.1.3)
+- [x] Wallet connection (MetaMask/EIP-6963) — `connectors: [injected()]` in `src/wagmi.ts`, `ConnectWallet.tsx` with network selector (Base Sepolia/Sepolia)
+- [x] Project listing — `useProjects` (`src/hooks/useProjects.ts`) reads `nextProjectId` and batches `getProject` via `useReadContracts` (multicall), no dependency on event logs
+- [x] Individual project detail — `ProjectDetail.tsx`, direct `useReadContract(getProject)`
+
+## Phase 5 — Frontend actions — **CLOSED (2026-07-08)**
+- [x] Create-project form (includes IPFS metadata upload before calling the contract) — `CreateProjectForm.tsx` + `usePinataUpload.ts`
+- [x] "pledge" button with `useWriteContract` — `PledgeForm.tsx` + `usePledge.ts`
+- [x] "claim" button (creator-only when applicable) — `ProjectDetail.tsx` + `useClaimFunds.ts`
+- [x] "refund" button (visible only if the project failed and the user has a pledge) — `ProjectDetail.tsx` + `useRefund.ts`
+- [x] Transaction state handling (pending/confirming/success/error) with readable non-technical messages — `useTxStatus.ts` + `TransactionStatus.tsx`
+- **Documented risk (RESOLVED 2026-07-10):** `VITE_PINATA_JWT` no longer exists in the frontend. `/backend` (minimal Express) created as the only holder of the Pinata JWT; frontend talks to it via `VITE_BACKEND_URL`. See `05_CRITICAL_REVIEW.md`/`04_STATUS.md` § Pinata Backend.
+- [x] Optional attached document (PDF/text) in "Create project", uploaded to IPFS alongside image/metadata — `CreateProjectForm.tsx` + `usePinataUpload.ts` (`documentCID`), see `04_STATUS.md` § "Phase 5 improvement (2026-07-08)". Client-side type (`application/pdf`/`text/plain`) and size (10 MB) validation.
+- [x] `ProjectDetail.tsx` shows/links `documentCID` in the detail view — "view attached document" link via `documentUrl` (`useProjectMetadata`), added in the "Fix (2026-07-16)" session (`04_STATUS.md`). Confirmed against real code and closed in `09_ROADMAP_MEJORAS.md` § 6 (2026-07-20).
+
+## Phase 6 — Final deploy and documentation
+- [ ] Mainnet deploy on the chosen L2
+- [ ] End-user `README.md` (connecting wallet, creating a project, pledging, claiming/refunding)
+- [ ] Final technical documentation (architecture, decisions, how to run locally)
+- [ ] Update `04_STATUS.md`
+
+## Phase 7 (future, NOT now) — Growth
+Platform fees, multi-token (ERC-20 alongside native), governance, creator reputation system, indexer (The Graph) to not depend solely on on-chain events.
+
+## Post-review improvement roadmap (cross-cutting, doesn't replace these phases)
+See `09_ROADMAP_MEJORAS.md`: points identified in project evaluations (CI, component/TxTracker test coverage, Base Sepolia deploy, persistent backend, etc.), each with options for Abraham to decide — doesn't compete with this document's phase order, executed on demand like `06_FRONTEND_VISUAL_UPGRADE.md`.
+
+## Frontend visual upgrades (cross-cutting, not a phase in this list)
+See `06_FRONTEND_VISUAL_UPGRADE.md`: reference map for AI agents with animations/hovers/glow/elevation and recommended stack (GSAP, design tokens, etc.). Activated on Abraham's demand over existing Phase 4/5 components, doesn't block or reorder Phases 3/6.
+
+**Planned pending item (2026-07-10, executed 2026-07-11):** Landing hero with 3 infinite carousels (§9 of `06_FRONTEND_VISUAL_UPGRADE.md`). Introduces, at Abraham's explicit request, **Tailwind CSS v4 + shadcn/ui** (previously out of stack) — the sole deliberate exception to this plan's "don't add dependencies without real technical need" criterion, justified for learning purposes. Detail in `04_STATUS.md` and `06_FRONTEND_VISUAL_UPGRADE.md` §9.
+
+## Architecture note (2026-07-17): frontend migration to TanStack Start
+`frontend/` (Vite SPA) was replaced by `frontend2.0/` (TanStack Start, SSR + file-based routing) as the repo's official frontend. Reason: better long-term maintainability if the dApp grows (file-based routing instead of a single view-switching `useState`, SSR for the public landing). No phase in this plan changes scope because of this — it's a container/routing change, not business logic (contract, IPFS, tx tracking migrated 1:1). Full technical detail: `docs/08_FRONTEND_MIGRATION.md`.
+
+**Update (2026-07-18):** the old `frontend/` (Vite SPA) folder was removed from the repo — no longer present even as historical reference on disk. The functional dApp also no longer lives on a separate route (`/app`) inside `frontend2.0/`: it's embedded as the `#demo` section of the landing (`/`). See `docs/08_FRONTEND_MIGRATION.md` § "Session 2026-07-18".
+
+## Correction note (Phase 1, 2026-07-05)
+This repo's real testing stack is **Hardhat 3 + `node:test` + viem + `hardhat-viem-assertions`**, not "Hardhat + Chai" as originally assumed in this plan. See `01_ARCHITECTURE.md`. Detailed status/next steps always in `04_STATUS.md`.

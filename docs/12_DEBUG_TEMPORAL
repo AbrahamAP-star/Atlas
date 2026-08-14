@@ -1,48 +1,43 @@
-# Registro temporal del caso NO_FCP
+# Temporary NO_FCP Case Log
 
-Fecha de ejecución: 2026-08-14 (Europe/Rome)
+Run date: 2026-08-14 (Europe/Rome)
 
-## Hechos
+## Facts
+- The frontend's temp copy builds correctly with Vite and generates SSR.
+- `vite preview` serves 47,476-byte SSR HTML including the hero's `h1`.
+- Lighthouse passes on `http://localhost:4173/`: FCP ~614ms, LCP ~898ms.
+- Lighthouse reproduces `NO_FCP` on `http://127.0.0.1:4173/` with the identical build, flags, and server.
+- A minimal static HTML page passes on both hosts.
+- The app's HTML response is identical between hosts except for a TanStack Router internal timestamp.
+- The app on `127.0.0.1` still fails when JavaScript is blocked.
+- The app on `127.0.0.1` passes when `*.css` is blocked: FCP ~484ms.
+- A minimal HTML page using the full generated CSS stylesheet also fails on `127.0.0.1`, even serving CSS and HTML from the same origin.
+- Removing the `.reveal-immediate` animation rule makes Lighthouse pass: FCP ~281ms.
+- Removing only the `reveal-immediate-in` keyframe also makes Lighthouse pass: FCP ~281ms.
+- Variants that keep the animation but remove `@property`, `contain`/`will-change`, or advanced colors still show `NO_FCP`.
+- A minimal HTML page containing only an equivalent CSS animation also reproduces `NO_FCP` on `127.0.0.1`.
 
-- La copia temporal del frontend compila correctamente con Vite y genera SSR.
-- `vite preview` entrega HTML SSR de 47.476 bytes con el `h1` del hero incluido.
-- Lighthouse pasa en `http://localhost:4173/`: FCP aproximado 614 ms, LCP aproximado 898 ms.
-- Lighthouse reproduce `NO_FCP` en `http://127.0.0.1:4173/` con el mismo build, flags y servidor.
-- Una página HTML estática mínima pasa en ambos hosts.
-- La respuesta HTML de la aplicación es igual salvo un timestamp interno de TanStack Router.
-- La aplicación en `127.0.0.1` sigue fallando al bloquear JavaScript.
-- La aplicación en `127.0.0.1` pasa al bloquear `*.css`: FCP aproximado 484 ms.
-- Una página HTML mínima que usa la hoja CSS generada completa también falla en `127.0.0.1`, incluso sirviendo CSS y HTML desde el mismo origen.
-- Retirar la regla de animación de `.reveal-immediate` hace pasar Lighthouse: FCP aproximado 281 ms.
-- Eliminar solo el keyframe `reveal-immediate-in` también hace pasar Lighthouse: FCP aproximado 281 ms.
-- Variantes que conservan la animación pero retiran `@property`, `contain`/`will-change` o colores avanzados continúan con `NO_FCP`.
-- Una página HTML mínima que contiene únicamente una animación CSS equivalente también reproduce `NO_FCP` en `127.0.0.1`.
+## Inferences
+- The HTTP server and SSR alone don't explain the failure.
+- The JS bundle isn't necessary to reproduce it.
+- The `.reveal-immediate` CSS animation is a sufficient observed condition for this case.
+- The full stylesheet isn't necessary: the isolated minimal animation also reproduces the failure.
+- The minimal matrix reproduces `NO_FCP` with the animation on both `localhost` and `127.0.0.1`.
+- The minimal matrix passes without the animation on both hosts: FCP ~163ms.
 
-## Inferencias
+## Active hypotheses
+1. The `reveal-immediate-in` CSS animation, combined with `opacity: 0` in its initial frame and `animation-fill-mode: both`, prevents FCP from registering when Lighthouse captures a page whose visible content depends on it.
+2. Some detail of the Lighthouse/CDP cycle pauses, disables, or doesn't advance the animation, leaving content in a non-paintable state.
+3. The full landing's result may vary because other nodes/backgrounds allow FCP to register before the effect is observed — needs a landing-specific repeat run.
 
-- El servidor HTTP y el SSR no son suficientes para explicar el fallo.
-- El bundle JavaScript no es necesario para reproducirlo.
-- La animación CSS aplicada por `.reveal-immediate` es una condición suficiente observada para este caso.
-- La hoja CSS completa no es necesaria: la animación mínima aislada también reproduce el fallo.
-- La matriz mínima reproduce `NO_FCP` con animación tanto en `localhost` como en `127.0.0.1`.
-- La matriz mínima pasa sin animación en ambos hosts: FCP aproximado 163 ms.
+## Hypotheses discarded or weakened
+- Build failure: discarded, this snapshot compiles fine.
+- Server down/empty SSR: weakened — HTTP and HTML are present.
+- Chrome fully broken: weakened — the static page passes.
+- JS/hydration as a necessary cause: weakened — blocking JS doesn't fix it.
+- Large DOM as a necessary condition: weakened — the minimal page with the same CSS also fails.
+- `@property`, containment/will-change, advanced colors as the main cause: weakened by negative variants.
+- `127.0.0.1` as a necessary condition: discarded by the minimal matrix — `localhost` also fails with the animation.
 
-## Hipótesis activas
-
-1. La animación CSS `reveal-immediate-in`, combinada con `opacity: 0` en su frame inicial y `animation-fill-mode: both`, evita que se registre FCP cuando Lighthouse captura una página cuyo contenido visible depende de ella.
-2. Algún detalle del ciclo Lighthouse/CDP que pausa, deshabilita o no avanza la animación deja el contenido en estado no pintable.
-3. El resultado de la landing completa puede variar porque otros nodos o fondos permiten registrar FCP antes de que el efecto sea observado; eso requiere una repetición específica para la landing.
-
-## Hipótesis descartadas o debilitadas
-
-- Fallo de compilación: descartado en este snapshot.
-- Servidor caído o SSR vacío: debilitado; HTTP y HTML están presentes.
-- Chrome totalmente roto: debilitado; la página estática pasa.
-- JavaScript/hidratación como causa necesaria: debilitado; bloquear JS no resuelve.
-- DOM grande como condición necesaria: debilitado; la página mínima con la misma CSS falla.
-- `@property`, containment/will-change y colores avanzados como causa principal: debilitados por variantes negativas.
-- `127.0.0.1` como condición necesaria: descartado por la matriz mínima; `localhost` también falla con la animación.
-
-## Siguiente experimento
-
-Repetir la matriz sobre la landing real y verificar si Lighthouse/CDP deja la animación en su frame inicial; después probar una variante que conserve el efecto visual pero no comience con `opacity: 0`.
+## Next experiment
+Repeat the matrix on the real landing page and check whether Lighthouse/CDP leaves the animation stuck on its initial frame; then try a variant that keeps the visual effect but doesn't start at `opacity: 0`.

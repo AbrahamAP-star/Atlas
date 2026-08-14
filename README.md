@@ -1,4 +1,4 @@
-# CrowdfundingDappClaudio
+# Atlas
 
 On-chain crowdfunding dApp (funds held 100% in the contract, no admin custody). See `docs/00_PROJECT_OVERVIEW.md` for full business context (Spanish — see `docs/` language note below).
 

@@ -1,43 +1,38 @@
-# Architecture — Justificación técnica
- 
+# Architecture — Technical Rationale
+
 ## 1. Smart contract layer
-- **Solidity ^0.8.24**, Hardhat como entorno de dev/test/deploy.
-- **OpenZeppelin Contracts v5.5.x**. Desde v5.5, `ReentrancyGuard` es *stateless* y vive en `@openzeppelin/contracts/utils/ReentrancyGuard.sol` (ya NO en `/security/`, esa ruta está deprecada en versiones recientes). Si el proyecto usa contratos upgradeables, `ReentrancyGuardUpgradeable` fue removido en 5.5 — usar la variante no-upgradeable y, si se necesita proxy, inicializar manualmente el slot (`_reentrancyGuardStorageSlot`).
-- Patrón recomendado por el propio equipo de OZ: **checks-effects-interactions** + `nonReentrant` como defensa en profundidad, no como sustituto.
-- No usar `Escrow.sol` / `PullPayment.sol` de OZ tal cual: están pensados para pagos genéricos, no para lógica de metas de crowdfunding (¿qué pasa si no se llega a la meta?). Se construye un contrato propio de crowdfunding que **internamente** usa el patrón *pull-payment* (mapping de saldos + retiro por el propio usuario) en vez de `transfer`/`send` directos, evitando reentrancy y el límite de 2300 gas de EIP-1884.
+- **Solidity ^0.8.24**, Hardhat for dev/test/deploy.
+- **OpenZeppelin Contracts v5.5.x**. Since v5.5, `ReentrancyGuard` is *stateless*, living at `@openzeppelin/contracts/utils/ReentrancyGuard.sol` (no longer `/security/`, deprecated path). `ReentrancyGuardUpgradeable` was removed in 5.5 — use the non-upgradeable variant.
+- Pattern: **checks-effects-interactions** + `nonReentrant` as defense in depth, not a substitute.
+- Not using OZ's `Escrow.sol`/`PullPayment.sol` (generic payments, no crowdfunding-goal semantics). Built a custom contract using an internal pull-payment pattern (balance mapping + self-withdrawal) instead of `transfer`/`send`, avoiding reentrancy and the EIP-1884 2300-gas stipend limit.
+
 ## 2. Frontend layer
-Stack confirmado como el estándar actual del ecosistema (no deprecado):
-- **Wagmi v2** (paquete `wagmi`, última versión estable en npm ronda 3.6.x) — capa de hooks React.
-- **Viem** — cliente TypeScript de bajo nivel sobre el que corre Wagmi; reemplazo moderno de ethers.js, más liviano y con mejor tipado.
-- **TanStack Query** — cache y estado async, requerido por Wagmi v2.
-- **TypeScript** en todo el frontend.
-- Conectores: MetaMask vía EIP-6963 (auto-discovery), WalletConnect opcional para fase futura.
-Nota de mantenimiento (fuente: comparativas de la comunidad, ver abajo): Wagmi ha cambiado de API entre v1 y v2 varias veces; **fijar versiones exactas en package.json** (no usar `^`) para evitar romper el proyecto en un futuro upgrade no planeado.
- 
-## 3. Capa L2 (deploy)
-Elección: **Base** (rollup optimista sobre Ethereum, EVM-equivalente, gas muy bajo, buena adopción de wallets/tooling). Alternativas EVM-equivalentes válidas con el mismo código: Arbitrum, Optimism. Los límites de gas del cliente (350k / 120k) son cómodos en cualquiera de estas L2 pero **ajustados si algún día se quisiera deployar también en L1 mainnet** — el diseño de gas se hace pensando en el peor caso (L1) para que sea portable.
- 
+- **Wagmi v2** (`wagmi`, ~3.6.x on npm) — React hooks layer.
+- **Viem** — low-level TS client Wagmi runs on; modern ethers.js replacement, lighter, better typed.
+- **TanStack Query** — async cache/state, required by Wagmi v2.
+- **TypeScript** throughout.
+- Connectors: MetaMask via EIP-6963 auto-discovery; WalletConnect optional, future phase.
+Maintenance note: Wagmi's API has changed across v1→v2; **pin exact versions in package.json** (no `^`) to avoid unplanned breakage.
+
+## 3. L2 layer (deploy)
+Choice: **Base** (optimistic rollup, EVM-equivalent, low gas, good wallet/tooling adoption). Valid alternatives: Arbitrum, Optimism. Gas limits (350k/120k) are comfortable on any of these L2s but **tight if ever deployed to L1 mainnet** — gas design targets the worst case (L1) for portability.
+
 ## 4. IPFS
-Metadata pesada de cada campaña (imagen, descripción larga, documentos) NO va on-chain (rompería el presupuesto de gas). Se sube a IPFS off-chain (Pinata) y solo el **CID (bytes32/string)** se guarda en el contrato. El contrato es la fuente de verdad de fondos; IPFS es solo presentación.
+Heavy campaign metadata (image, long description, documents) is NOT on-chain (would blow the gas budget). Uploaded off-chain to IPFS (Pinata); only the **CID (bytes32/string)** is stored on-chain. The contract is the source of truth for funds; IPFS is presentation only.
 
-**Actualización (2026-07-10):** la subida a Pinata ya no ocurre directo desde el navegador. Se agregó `/backend` (Express minimo) que guarda el JWT de Pinata del lado del servidor y expone dos endpoints propios (`/api/pin-file`, `/api/pin-json`) al frontend. Motivo y detalle completo en `05_CRITICAL_REVIEW.md`. Esto no cambia la arquitectura de fondos (sigue siendo 100% on-chain); solo mueve dónde vive un secreto de un servicio de terceros.
- 
+**Update (2026-07-10):** uploads to Pinata no longer happen directly from the browser. `/backend` (minimal Express) now holds the Pinata JWT server-side and exposes `/api/pin-file`/`/api/pin-json`. Detail in `05_CRITICAL_REVIEW.md`. Doesn't change fund architecture (still 100% on-chain); only relocates a third-party secret.
+
 ## 5. Testing
-Hardhat + Chai + `hardhat-gas-reporter` para verificar en cada test que `createProject` y `pledge` no superan 350k/120k gas — esto convierte las restricciones del cliente en un test automatizado, no en una promesa.
- 
-## Fuentes consultadas
-- wagmi.sh — Getting Started / Installation / Viem guide (docs oficiales, vigentes)
-- npmjs.com/package/wagmi — versión publicada actual
-- github.com/OpenZeppelin/openzeppelin-contracts — CHANGELOG.md y código fuente `ReentrancyGuard.sol` / `ReentrancyGuardTransient.sol`
-- docs.openzeppelin.com/contracts — Security y Utils (Escrow, PullPayment)
-- forum.openzeppelin.com — hilos sobre remoción de `ReentrancyGuardUpgradeable` en v5.5
-- PkgPulse, Startupik — comparativas comunitarias wagmi vs viem vs ethers.js (2026)
+Hardhat + Chai + `hardhat-gas-reporter` intended originally to verify `createProject`/`pledge` stay under 350k/120k gas as an automated test, not just a promise. **Superseded — see correction below: real stack is Hardhat 3 + node:test, not Chai.**
 
-## Corrección — Fase 1 (2026-07-05)
-El punto 5 de este documento quedó desactualizado en cuanto se ejecutó Fase 0. Correcciones confirmadas leyendo directamente `hardhat.config.ts`, `package.json` y `node_modules` del repo:
+## Sources consulted
+wagmi.sh docs, npmjs.com/package/wagmi, github.com/OpenZeppelin/openzeppelin-contracts (CHANGELOG + `ReentrancyGuard(Transient).sol`), docs.openzeppelin.com/contracts, forum.openzeppelin.com (ReentrancyGuardUpgradeable removal in 5.5), community wagmi/viem/ethers.js comparisons (2026).
 
-- **Testing real: Hardhat 3 + `node:test` + viem + `hardhat-viem-assertions`**, NO Mocha/Chai. El `package.json` instala `@nomicfoundation/hardhat-toolbox-viem` (el toolbox recomendado por Nomic Foundation para proyectos nuevos en HH3), que trae el runner nativo de Node (`node:test`) en vez de Mocha. Fuente: hardhat.org/docs/guides/testing/using-viem y hardhat.org/docs/plugins/hardhat-toolbox-viem (ambas, julio 2026). El gas reporting se hace corriendo `REPORT_GAS=true hardhat test` (ya está en el script `test:gas` del `package.json`), y además se añadieron asserts de gas explícitos dentro de los tests (`receipt.gasUsed <= 350_000n` / `<= 120_000n`) para que el límite falle el test automáticamente, no solo aparezca en un reporte que alguien debe leer.
-- **OZ instalado: v5.6.1** (spec pedía 5.5.x). Compatible: se confirmó leyendo `node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol` que la ruta sigue siendo `/utils/` como se documentó aquí, no `/security/`.
-- **Decisión añadida en Fase 1: se usa `ReentrancyGuardTransient` (no `ReentrancyGuard` clásico)**. Usa transient storage (TSTORE/TLOAD, EIP-1153) en vez de storage normal (SSTORE/SLOAD) para el lock de reentrancy, ahorrando ~2500-5000 gas por llamada — relevante porque `pledge` tiene un presupuesto duro de 120k gas. Requiere que la red de destino soporte Cancún/EIP-1153; Base, Arbitrum y Optimism ya lo soportan en 2026. Fuente: `node_modules/@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol` (OZ 5.6.1, mismo modifier `nonReentrant`, drop-in compatible con el resto de la spec).
+## Correction — Phase 1 (2026-07-05)
+Section 5 above went stale once Phase 0 ran. Confirmed directly against `hardhat.config.ts`/`package.json`/`node_modules`:
 
-Estado detallado, avances y próximos pasos: ver siempre `04_STATUS.md` (es la fuente de verdad del progreso, este archivo solo documenta justificación técnica).
+- **Real testing stack: Hardhat 3 + `node:test` + viem + `hardhat-viem-assertions`**, NOT Mocha/Chai. `package.json` installs `@nomicfoundation/hardhat-toolbox-viem` (Nomic Foundation's recommended toolbox for new HH3 projects), which brings Node's native runner instead of Mocha. Source: hardhat.org/docs/guides/testing/using-viem, hardhat.org/docs/plugins/hardhat-toolbox-viem (July 2026). Gas reporting via `REPORT_GAS=true hardhat test` (script `test:gas`), plus explicit gas asserts inside tests (`receipt.gasUsed <= 350_000n`/`<= 120_000n`) so the limit fails the test automatically, not just appears in a report someone must read.
+- **OZ installed: v5.6.1** (spec asked for 5.5.x). Compatible: confirmed `node_modules/@openzeppelin/contracts/utils/ReentrancyGuard.sol` still lives at `/utils/`.
+- **Decision added in Phase 1: use `ReentrancyGuardTransient`** (not classic `ReentrancyGuard`). Uses transient storage (TSTORE/TLOAD, EIP-1153) instead of normal storage for the reentrancy lock, saving ~2500-5000 gas per call — relevant given `pledge`'s hard 120k gas budget. Requires Cancún/EIP-1153 support; Base, Arbitrum, Optimism support it in 2026. Source: `node_modules/@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol` (OZ 5.6.1), same `nonReentrant` modifier, drop-in.
+
+Detailed status/progress: always see `04_STATUS.md` (source of truth for progress; this file only documents technical rationale).

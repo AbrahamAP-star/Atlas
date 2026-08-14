@@ -1,75 +1,31 @@
-# Mobile Support — Soporte para celulares
+# Mobile Support
 
-## Proposito
-Este documento registra que la DApp fue adaptada para verse y usarse bien en
-celulares (pantallas ~360px-428px de ancho), y sirve de referencia para
-cualquier agente futuro que agregue componentes nuevos: seguir el mismo
-patron de mobile-first liviano descrito aqui, no reinventar otro.
+## Purpose
+Documents that the dApp was adapted to look/work well on phones (~360px-428px wide), and serves as reference for any future agent adding new components: follow the same lightweight mobile-first pattern here, don't invent another.
 
-## Diagnostico (2026-07-14): que estaba roto en mobile antes de este cambio
-- `.app-header` era un `flex` fila sin wrap: el titulo y `ConnectWallet`
-  (selector de red + address + boton) competian por el ancho y se apretaban
-  o desbordaban en pantallas angostas.
-- `.pledge-form`/`.action-block` eran filas fijas: en pantallas angostas el
-  input de monto y los botones quedaban apretados o el texto se cortaba.
-- `.tx-toast-stack` tenia `max-width: 320px` fijo pegado a la esquina: en un
-  telefono de 360px de ancho, quedaba casi pegado a los bordes sin margen
-  visual.
-- Botones sin `min-height`: por debajo del tamano tactil comodo recomendado
-  (~44px), dificil de tocar con precision en pantallas pequenas.
-- `.file-field`/`.file-attachment-card` (drag-and-drop de documento en
-  `CreateProjectForm.tsx`) nunca habian tenido CSS propio — se veian como
-  texto plano sin caja, un problema en cualquier tamano de pantalla pero mas
-  notorio en mobile por la falta de affordance tactil clara.
-- El resto (`.project-grid` con `auto-fill`, `.hero-title` con `clamp()`, el
-  Hero/marquee) ya era responsive desde su implementacion original — no se
-  toco de nuevo.
+## Diagnosis (2026-07-14): what was broken on mobile before this change
+- `.app-header` was a non-wrapping flex row: title and `ConnectWallet` (network selector + address + button) fought for width and overflowed/squeezed on narrow screens.
+- `.pledge-form`/`.action-block` were fixed rows: on narrow screens the amount input and buttons got cramped or text got clipped.
+- `.tx-toast-stack` had a fixed `max-width: 320px` pinned to a corner: on a 360px phone it sat nearly flush against the edges with no visual margin.
+- Buttons had no `min-height`: below the recommended ~44px comfortable tap target, hard to tap precisely on small screens.
+- `.file-field`/`.file-attachment-card` (document drag-and-drop in `CreateProjectForm.tsx`) never had any CSS of their own — rendered as plain text with no box, a problem at any screen size but more noticeable on mobile from the lack of tactile affordance.
+- Everything else (`.project-grid`'s `auto-fill`, `.hero-title`'s `clamp()`, the hero/marquee) was already responsive from its original implementation — untouched.
 
-## Que se hizo
-Todo el trabajo fue **CSS-only**, dentro del `@media (max-width: 640px)` ya
-existente en `frontend/src/styles.css` (se extendio, no se creo uno
-duplicado) + un bloque nuevo de estilos para `.file-field`/`.file-attachment-card`
-que aplica en todos los tamanos (arreglaba un gap real, no solo mobile).
-Ningun componente `.tsx` cambio de estructura — el objetivo era resolver esto
-sin JS adicional ni breakpoints nuevos dispersos por el codigo.
+## What was done
+All CSS-only, inside the pre-existing `@media (max-width: 640px)` block (extended, not duplicated) + a new size-agnostic block for `.file-field`/`.file-attachment-card` (a real gap, not mobile-specific). No `.tsx` component changed structurally — the goal was solving this with zero extra JS or scattered new breakpoints.
+- `.app-header`: `flex-direction: column` on mobile, smaller title (`1.3rem`), `.wallet-box` full width.
+- `.pledge-form`: `flex-direction: column` on mobile (input and "Pledge" button stack instead of sharing a narrow row).
+- `.action-block`/`.view-toolbar`: `flex-wrap: wrap` so action buttons wrap instead of overflowing.
+- `.tx-toast-stack`: anchored to `left/right: 1rem` (fluid width with margin) on mobile instead of a fixed corner `max-width`.
+- Buttons: `min-height: 44px` on mobile.
+- `.file-field`/`.file-attachment-card`: new styles (all screen sizes), `flex-wrap` + `text-overflow: ellipsis` on the filename so a long name doesn't break the layout on narrow screens.
 
-- **`.app-header`**: pasa a `flex-direction: column` en mobile, titulo mas
-  chico (`1.3rem`), `.wallet-box` ocupa el ancho completo.
-- **`.pledge-form`**: `flex-direction: column` en mobile (el input y el boton
-  de "Pledge" se apilan en vez de compartir una fila angosta).
-- **`.action-block`**: `flex-wrap: wrap` para que los botones de accion
-  (crear/cancelar, reclamar/reembolso) bajen de linea en vez de desbordar.
-- **`.view-toolbar`**: `flex-wrap: wrap` (mismo criterio).
-- **`.tx-toast-stack`**: en mobile se ancla a `left/right: 1rem` (ancho
-  fluido con margen) en vez de un `max-width` fijo pegado a una esquina.
-- **Botones**: `min-height: 44px` en mobile (area tactil recomendada).
-- **`.file-field`/`.file-attachment-card`**: estilos nuevos (aplican a todos
-  los tamanos), con `flex-wrap` y `text-overflow: ellipsis` en el nombre del
-  archivo para que un nombre largo no rompa el layout en pantallas angostas.
+## What was NOT touched (and why)
+- `index.html`'s meta viewport was already correct since Phase 4 — verified, no changes needed.
+- `.project-grid` (`repeat(auto-fill, minmax(240px, 1fr))`) already collapses to one column on mobile natively via CSS Grid.
+- Hero/marquee (`06_FRONTEND_VISUAL_UPGRADE.md` §9): its `clamp()` title and existing `@media (max-width: 640px)` reductions were already there from the original implementation.
+- Tablet breakpoints (e.g. 768-1024px): deliberately not added — the single centered container (`max-width: 880px`) already behaves fine on tablet; adding an intermediate breakpoint without a real problem to solve would be unjustified complexity.
 
-## Que NO se toco (y por que)
-- **`index.html`**: el meta viewport (`width=device-width, initial-scale=1.0`)
-  ya estaba correcto desde Fase 4 — condicion basica sin la cual nada de esto
-  funcionaria, se verifico pero no requirio cambios.
-- **`.project-grid`** (`repeat(auto-fill, minmax(240px, 1fr))`): ya colapsa a
-  una columna en mobile de forma nativa via CSS Grid, no necesitaba media
-  query propia.
-- **Hero/marquee** (`06_FRONTEND_VISUAL_UPGRADE.md` §9): `.hero-title` con
-  `clamp()` y el `@media (max-width: 640px)` que reduce `--gap-carousel`/
-  `.showcase-card` ya existian desde su implementacion original.
-- **Breakpoints de tablet** (ej. 768px-1024px): no se agregaron a proposito —
-  el layout de un solo contenedor centrado (`max-width: 880px`) que ya tiene
-  la DApp se comporta bien en tablet sin necesidad de un breakpoint
-  intermedio; agregar uno sin un problema real que resolver seria complejidad
-  injustificada.
-
-## Pendiente (no bloqueante, candidato a futuro si el uso real lo pide)
-- No se probo en dispositivo fisico real, solo via devtools/responsive mode.
-  Recomendado que Abraham valide en un celular real antes de dar esto por
-  cerrado del todo (fuentes del sistema, tap targets, y el flujo de firma de
-  MetaMask Mobile/wallets moviles pueden comportarse distinto a Chrome
-  desktop con devtools).
-- `useInfiniteMarquee.ts`/`CarouselRow.tsx` no se revisaron a fondo para
-  interacciones tactiles (ej. pausar el marquee al tocar, en vez de solo al
-  hacer hover, que no existe en touch) — el marquee sigue andando solo,
-  funcional pero sin ese detalle de pulido tactil.
+## Pending (non-blocking, future candidate if real usage demands it)
+- Never tested on a real physical device, only devtools/responsive mode — recommended Abraham validate on a real phone (system fonts, tap targets, and MetaMask Mobile/mobile-wallet signing flow can behave differently than desktop Chrome devtools).
+- `useInfiniteMarquee.ts`/`CarouselRow.tsx` weren't reviewed for touch interactions (e.g. pausing the marquee on tap instead of only hover, which doesn't exist on touch) — the marquee keeps running, functional but without that tactile polish detail.

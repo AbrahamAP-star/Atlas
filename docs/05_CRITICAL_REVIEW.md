@@ -1,113 +1,65 @@
-# Revisión crítica de la propuesta original
- 
-## Contradicciones detectadas
-1. **"On-chain la mayor parte posible" vs "no debe ser gigante ni complejo"**: subir frontend/IPFS content on-chain (ej. imágenes) rompe el presupuesto de gas (350k/120k) y no aporta valor real — nadie lee HTML desde un explorador de bloques. Decisión tomada: solo lógica financiera on-chain; presentación off-chain (React estático) + IPFS para metadata. Esto SÍ es "descentralizado" en lo que importa (custodia de fondos) sin inflar gas.
-2. **"Funciones que cambian estado al final del archivo, tras cargar todo correctamente"**: esto es una convención de legibilidad válida, pero no aporta seguridad real por sí sola — en Solidity el orden textual de funciones no afecta el runtime ni previene ataques. Lo que sí previene reentrancy es CEI + `nonReentrant`, que ya está incluido. Se mantiene el orden por legibilidad/mantenibilidad (pedido explícito), pero no debe venderse al cliente como medida de seguridad.
-3. **Restricción de gas dura (350k/120k) calculada para L2**: en L1 mainnet esos mismos límites serían generosos para `createProject` pero ajustados para `pledge` si se usa un mapping anidado sin optimizar el slot. El diseño con `uint96`/`uint40` empaquetados en un solo slot (struct packing) es lo que hace viable cumplir 120k gas de forma consistente — sin ese empaquetado el límite sería arriesgado.
-## Huecos que el cliente no mencionó pero son necesarios
-- **Qué pasa si el creador crea un proyecto y nunca hay backers**: cubierto — `refund` no aplica (no hay pledges), y no hay fondos bloqueados porque nunca hubo depósito.
-- **Ataque de front-running en `claimFunds`**: mitigado porque solo `creator` puede llamarlo y el monto ya es fijo on-chain; no hay ventana de manipulación de precio (no hay oráculo).
-- **Divisibilidad de `uint96`**: si en el futuro se soporta ERC-20 con 18 decimales y montos grandes, `uint96` podría quedarse corto. Está documentado en `02_SMART_CONTRACT_SPEC.md` como ajuste futuro, no un bug actual.
-## Recomendación de mi parte (no pedida explícitamente, mejora la propuesta)
-Añadir a Fase 2 un test específico de "grief" donde un mismo backer hace pledge 0 repetidamente para ver si algún evento o cálculo se rompe con montos cero — no cuesta nada y cierra un vector de confusión de UX/logs.
+# Critical Review of the Original Proposal
 
-## Bug real encontrado y corregido (2026-07-20): `TxWatcher` perdia el nombre de error decodificado por eth_call replay
+## Contradictions detected
+1. **"As much on-chain as possible" vs. "shouldn't be huge/complex":** putting frontend/IPFS content (e.g. images) on-chain would blow the 350k/120k gas budget with no real value (nobody reads HTML from a block explorer). Decision: only financial logic on-chain; presentation off-chain (static React) + IPFS for metadata. This IS "decentralized" where it matters (fund custody) without bloating gas.
+2. **"State-changing functions at the end of the file, after loading everything correctly":** valid readability convention, but adds no real security by itself — Solidity's textual function order doesn't affect runtime or prevent attacks. CEI + `nonReentrant` is what actually prevents reentrancy. Kept for readability, not sold to the client as a security measure.
+3. **Hard gas limits (350k/120k) calculated for L2:** on L1 mainnet these would be generous for `createProject` but tight for `pledge` with an unoptimized nested mapping slot. `uint96`/`uint40` struct packing into one slot is what makes hitting 120k consistently viable.
 
-Detectado escribiendo `context/TxTrackerContext.test.tsx` (punto 4 de `09_ROADMAP_MEJORAS.md`), no por inspeccion manual del codigo — el test con mocks asincronos reales (`mockRejectedValue`) expuso una condicion de carrera invisible leyendo el codigo en estatico.
+## Gaps the client didn't mention but are necessary
+- Creator creates a project, never gets backers: covered — `refund` doesn't apply (nothing to refund), no stuck funds since none were deposited.
+- Front-running on `claimFunds`: mitigated — only `creator` can call it and the amount is already fixed on-chain, no oracle/price-manipulation window.
+- `uint96` divisibility: if ERC-20 with 18 decimals and large amounts is ever supported, `uint96` could fall short — documented as future adjustment in `02_SMART_CONTRACT_SPEC.md`, not a current bug.
 
-**El bug:** `TxWatcher` resolvia el estado `"error"` en **dos pasadas**: una inmediata con el mensaje generico de `toReadableError` (antes de que terminara el replay de `eth_call`), y una segunda cuando el replay decodificaba el nombre real del error custom. El problema es que `TxTrackerProvider` solo mantiene montado un `TxWatcher` mientras el status del hash sea `"confirming"`/`"pending"` (`unresolvedHashes`). En cuanto la **primera** pasada ponia el status en `"error"`, el hash salia de esa lista y React desmontaba el `TxWatcher` en el siguiente render — el cleanup marcaba `cancelled = true` **antes** de que la promesa real de `eth_call` (un round-trip de red, cientos de ms en produccion) llegara a resolver. Resultado: el nombre de error decodificado nunca se aplicaba, y el usuario siempre veia el mensaje generico de `toReadableError` (`error.shortMessage`) en vez del mapeo legible de `errorMessages` (ej. "El proyecto ya fue reclamado" en vez del shortMessage crudo de viem). La funcionalidad de replay documentada en "Key learnings" ("Mined revert decoding requires eth_call replay") estaba efectivamente muerta para cualquier error real.
+## Recommendation (not explicitly requested, improves the proposal)
+Added a Phase 2 "grief" test: same backer pledging 0 repeatedly, checking for broken events/calcs. Free to add, closes a UX/log-noise confusion vector. **Resolved at the root** in Phase 1: `msg.value == 0` is simply rejected (`ZeroPledge`).
 
-**Fix:** se consolidaron los dos `useEffect`/dos llamadas a `onResolve` en uno solo: ahora el intento de replay se espera (`await`) **antes** de llamar a `onResolve("error", ...)`, asi que el status del hash pasa de `"confirming"` directo al mensaje final ya correcto, sin un paso intermedio que dispare el desmontaje prematuro. Se elimino el estado local `replayedErrorName` (ya no hace falta, todo el calculo vive dentro de la misma funcion async). Mismo comportamiento observable en el resto de casos (success/pending/confirming), sin cambios.
+## Real bug found and fixed (2026-07-20): `TxWatcher` lost the eth_call-replay-decoded error name
+Found while writing `TxTrackerContext.test.tsx`, not by static code reading — a real async-mock test (`mockRejectedValue`) exposed an invisible race condition.
+**The bug:** `TxWatcher` resolved `"error"` in two passes — an immediate generic message (before the `eth_call` replay finished), then a second pass with the decoded custom-error name. `TxTrackerProvider` only keeps a `TxWatcher` mounted while a hash's status is `"confirming"`/`"pending"`. The first pass already set status to `"error"`, removing the hash from `unresolvedHashes` and unmounting `TxWatcher` on the next render — the cleanup set `cancelled = true` **before** the real network round-trip (hundreds of ms in production) resolved. Result: the decoded error name never applied; users always saw the generic message instead of the readable mapped one (e.g. "Project already claimed"). The documented eth_call-replay feature was effectively dead for any real error.
+**Fix:** consolidated into one async flow — the replay attempt is `await`ed **before** calling `onResolve("error", ...)`, so status goes straight from `"confirming"` to the final correct message, no intermediate step triggering premature unmount. Removed the now-unneeded local `replayedErrorName` state. Behavior unchanged for success/pending/confirming.
+**How found:** the test kept failing with the generic message even with `waitFor` (1s timeout); investigating why (not adjusting the test to pass) traced it to the premature unmount above — confirmed by fixing the source, not the test.
 
-**Como se detecto:** el primer intento de `resolves to a readable error via eth_call replay...` en `TxTrackerContext.test.tsx` fallaba con el mensaje generico en vez del especifico, incluso esperando con `waitFor` (timeout de 1s). Investigando el porque (no solo ajustando el test para que "pasara"), se rastreo la causa hasta el desmontaje prematuro descrito arriba — confirmado corrigiendo el codigo fuente, no el test.
+## Bugs found and fixed implementing Phase 1 (2026-07-05)
+1. `isSuccessful`/`isExpired` on a nonexistent `id` returned `true`/zeroed comparisons (`pledged=0 >= goal=0`) — a never-existing project looked "successful". Fix: `_requireProjectExists` on every `id`-taking function.
+2. `uint256 → uint96`/`uint40` conversion without `SafeCast` silently truncates instead of reverting (Solidity 0.8 only does checked arithmetic on ops, not explicit casts). Fix: `SafeCast.toUint96`/`toUint40` everywhere.
+3. `goal == 0` broke success semantics (see #1). Fix: `require(goal > 0)` via `InvalidGoal`.
+4. This document's own "grief test" recommendation was resolved at the root: `msg.value == 0` is now rejected directly (`ZeroPledge`), eliminating the event-noise vector instead of just documenting it.
 
-## Bugs encontrados y corregidos al implementar Fase 1 (2026-07-05)
-Esta spec, aunque sólida en el diseño general, tenía huecos concretos que solo aparecieron al escribir el código real:
+## Manual review — Phase 2 (2026-07-06)
+`02_SMART_CONTRACT_SPEC.md` § Security checklist verified line-by-line against real code — all OK (CEI, nonReentrant/ReentrancyGuardTransient verified with a real attack test, no `transfer`/`send`, no unbounded loops, deadline validated at creation, no platform fee by design).
 
-1. **`isSuccessful`/`isExpired` sobre un `id` inexistente devolvían `true`/comparaciones con datos en cero** (`pledged=0 >= goal=0`). Un proyecto que nunca existió parecía "exitoso". Fix: `_requireProjectExists` en toda función que recibe un `id`.
-2. **Conversión `uint256 → uint96`/`uint40` sin `SafeCast` trunca en silencio** en vez de revertir — Solidity 0.8 solo hace checked arithmetic en operaciones (+, -, *), no en casts explícitos de tipo. Un `msg.value` mayor a `type(uint96).max` se habría truncado sin error. Fix: `SafeCast.toUint96`/`toUint40` en todas las conversiones.
-3. **`goal == 0` rompía la semántica de éxito/fracaso** (ver punto 1). Fix: `require(goal > 0)` vía error `InvalidGoal`.
-4. La recomendación de "test de grief con pledge=0" de este mismo documento se resolvió de raíz: en vez de solo testear el comportamiento, se **rechaza `msg.value == 0`** directamente (`ZeroPledge`), eliminando el vector de ruido de eventos en vez de solo documentarlo.
+**New findings from this review:**
+1. `isExpired`'s boundary is strictly-greater, not ≥ — at `block.timestamp == deadline` a project still accepts pledges. Consistent with spec but untested at the exact boundary — added in `test/PledgeFuzz.ts`.
+2. `pledges[id][backer]` summed in `uint96` can overflow if a backer nears the max and pledges again — Solidity 0.8's checked arithmetic (panic 0x11) reverts correctly, no silent wraparound. Confirmed with a dedicated test.
+3. `SafeCast.toUint96` in `pledge` had never been exercised with a real out-of-range value (Phase 1 tests only used small amounts) — added a forced-balance test for the real revert.
+4. Also tested the attacker creating their own project (as `creator`) to attack `claimFunds`: the guard blocks it identically — being the creator gives no reentrancy advantage.
 
-Detalle del código y del resto de decisiones: `02_SMART_CONTRACT_SPEC.md` y `04_STATUS.md`.
+## Slither — executed (2026-07-07)
+Native `slither-analyzer`/`solc` binaries weren't reachable in the analysis sandbox (no access to `binaries.soliditylang.org`), so `slither-analyzer` was installed via pip and compilation done with `solc-js` (`solc@0.8.28` npm package) in `--standard-json` mode, all OZ 5.6.1 imports manually inlined (no remappings — `solc-js` CLI can't resolve `node_modules/` via an import callback). Analyzed `Crowdfunding.sol` + `ReentrancyAttacker.sol` together. **19 findings across 6 detector categories, none critical or requiring a code change:**
 
-## Revisión manual — Fase 2 (2026-07-06)
-
-Checklist de `02_SMART_CONTRACT_SPEC.md` § Seguridad, verificado línea por línea contra `contracts/Crowdfunding.sol` real:
-
-| Item del checklist | Estado | Evidencia |
-|---|---|---|
-| CEI en pledge/claimFunds/refund | OK | claimFunds/refund escriben estado antes del .call; pledge no tiene interaction. |
-| nonReentrant como segunda capa | OK | ReentrancyGuardTransient, verificado con ataque real en test/ReentrancyAttack.ts. |
-| Sin transfer/send | OK | Ambas salidas usan .call{value}("") + require(success). |
-| Sin loops no acotados | OK | Ningún for/while; refund es individual. |
-| deadline validado en creación | OK | durationSeconds > 0 garantiza deadline > block.timestamp al crear. |
-| Fee de plataforma | N/A | No se implementa en v1 (decisión ya tomada). |
-
-### Hallazgos nuevos de esta revisión
-
-1. Borde de isExpired es estrictamente mayor, no mayor-o-igual: en block.timestamp == deadline el proyecto AUN acepta pledges. Coherente con la spec original, pero no tenía test del borde exacto — se agregó en test/PledgeFuzz.ts.
-2. La suma de pledges[id][backer] en uint96 puede desbordar si un mismo backer se acerca al máximo y vuelve a aportar. Es un overflow checked de Solidity 0.8 (panic 0x11): revierte correctamente, no hace wrap-around silencioso. Confirmado con test dedicado.
-3. SafeCast.toUint96 en pledge nunca se había ejercitado con un valor real fuera de rango (los tests de Fase 1 solo usaban montos pequeños). Se agregó test forzando el balance de la cuenta para probar el revert real.
-4. Se probó también el caso donde el propio atacante crea el proyecto (queda como creator) para atacar claimFunds: el guard lo bloquea igual, ser creator no da ninguna ventaja para reentrar.
-
-### Limitación de esta revisión (superada)
-Esta limitación quedó resuelta: ver "Slither — ejecutado (2026-07-07)" más abajo. Sigue pendiente correr `npm test` localmente para confirmar en la práctica que los tests nuevos de Fase 2 pasan (los 17 de Fase 1 ya están confirmados 17/17, ver `04_STATUS.md`).
-
-## Slither — ejecutado (2026-07-07)
-
-`slither-analyzer` no estaba disponible como binario nativo en el entorno de análisis (sin acceso de red a `binaries.soliditylang.org`), así que se instaló `slither-analyzer` vía `pip` y se compiló el contrato con `solc-js` (paquete npm `solc@0.8.28`) en modo `--standard-json`, con todos los imports de OZ 5.6.1 resueltos e inlineados manualmente (sin remappings, ya que `solc-js` en CLI no soporta un import callback para resolver `node_modules/`). Se analizaron `contracts/Crowdfunding.sol` y `contracts/mocks/ReentrancyAttacker.sol` juntos. Slither reportó **19 resultados en 6 categorías de detector**, ninguno crítico ni que requiera cambio de código:
-
-| Detector | Dónde | Severidad real | Por qué no aplica / ya está mitigado |
+| Detector | Where | Real severity | Why it doesn't apply / already mitigated |
 |---|---|---|---|
-| `reentrancy-benign` | `ReentrancyAttacker.receive()` (solo el mock de test, no el contrato de producción) | Ninguna | Es el propio mock de ataque de `test/ReentrancyAttack.ts`; escribe variables de diagnóstico (`reentrantCallReverted`) después de una llamada externa, pero nunca mueve fondos. No forma parte del contrato desplegado. |
-| `timestamp` | `_isSuccessful` / `_isExpired` en `Crowdfunding.sol` | Informativo | Uso esperado y documentado de `block.timestamp` para deadlines de días/semanas; la manipulación de timestamp por un minero está acotada a segundos y no cambia el resultado de una campaña de crowdfunding. |
-| `assembly` | `TransientSlot.sol` / `SafeCast.sol` (código de OpenZeppelin, no nuestro) | Ninguna | Assembly interno de una librería auditada de OZ 5.6.1, no código propio del proyecto. |
-| `pragma` (versiones mixtas) | `SafeCast.sol` declara `^0.8.20`, el resto `^0.8.24` | Informativo | Es el pragma del propio archivo de OZ, no algo que el proyecto controle. El compilador real usado por `hardhat.config.ts` es `0.8.28` para todo el proyecto. |
-| `solc-version` | Mismo `^0.8.20` de `SafeCast.sol` | Falso positivo en este contexto | El detector señala bugs conocidos de versiones *antiguas* de solc que cumplan ese pragma; el proyecto real compila con solc `0.8.28`, donde esos bugs ya están corregidos. Es una advertencia sobre el rango declarado, no sobre el compilador efectivamente usado. |
-| `low-level-calls` | `.call{value}()` en `claimFunds`/`refund` | Ya justificado | Decisión de diseño explícita en `02_SMART_CONTRACT_SPEC.md` (evitar el límite de 2300 gas de `transfer`/`send`, EIP-1884), con CEI + `nonReentrant` como mitigación. |
+| `reentrancy-benign` | `ReentrancyAttacker.receive()` (test mock only) | None | Part of the attack mock (`test/ReentrancyAttack.ts`), writes diagnostic vars after an external call but never moves funds; not deployed. |
+| `timestamp` | `_isSuccessful`/`_isExpired` | Informational | Expected/documented use of `block.timestamp` for day/week-scale deadlines; miner manipulation is second-scale, doesn't change a campaign's outcome. |
+| `assembly` | `TransientSlot.sol`/`SafeCast.sol` (OZ code) | None | Audited OZ library internals, not project code. |
+| `pragma` (mixed versions) | `SafeCast.sol` `^0.8.20` vs. rest `^0.8.24` | Informational | OZ's own file pragma; the project actually compiles everything with solc `0.8.28`. |
+| `solc-version` | Same `^0.8.20` in `SafeCast.sol` | False positive here | Detector flags known bugs in *old* solc versions matching that pragma; real compiler used (`0.8.28`) already fixes them. |
+| `low-level-calls` | `.call{value}()` in `claimFunds`/`refund` | Already justified | Explicit design choice (avoids `transfer`/`send`'s EIP-1884 2300-gas limit), CEI + `nonReentrant` as mitigation. |
 
-**Conclusión:** Slither no encontró ninguna vulnerabilidad nueva ni real en `Crowdfunding.sol`. Los 19 resultados son ruido esperado de librerías de terceros (OZ) o patrones ya documentados y justificados en la spec. No se requieren cambios de código a raíz de este análisis.
+**Conclusion:** no new/real vulnerability found. All 19 results are third-party (OZ) library noise or already-documented, justified patterns. No code changes made.
+**Environment note:** the sandbox this ran in lacked access to `binaries.soliditylang.org` (only `pypi.org`/`registry.npmjs.org`/`github.com`), hence the `solc-js` workaround. Running Slither locally in WSL with a native `solc` shouldn't need any of this — `slither contracts/Crowdfunding.sol --solc-remaps @openzeppelin=node_modules/@openzeppelin`.
 
-**Nota de entorno (para reproducir):** el sandbox donde se corrió este análisis no tenía acceso a `binaries.soliditylang.org` (solo a `pypi.org`/`registry.npmjs.org`/`github.com`), así que se usó `solc-js` en vez del `solc` nativo vía un wrapper de shell que traduce `--standard-json` y filtra una línea de log no-JSON (`>>> Cannot retry compilation with SMT...`) que `solc-js` imprime en stdout y que rompía el parseo de `crytic-compile`. Si Abraham corre Slither localmente en WSL con `solc` nativo instalado (vía `solc-select` o el binario de `solc-js`/Hardhat), no debería necesitar ninguno de estos workarounds — puede correr directamente `slither contracts/Crowdfunding.sol --solc-remaps @openzeppelin=node_modules/@openzeppelin`.
+## Critical review — Phase 5 (2026-07-08): uploading metadata to IPFS from the browser
+Real, not hypothetical, problem: Phase 5 needs to upload campaign metadata to IPFS before calling `createProject`, and at the time there was no backend to proxy/hide credentials — only two real options: (1) upload directly from the browser with an embedded Pinata key (implemented then, mitigated with a scope-restricted key limited to `pinFileToIPFS`/`pinJSONToIPFS`, no admin permissions — worst case of a leaked key is quota abuse, not deletion/listing of other content); (2) add a minimal backend/serverless proxy (more secure, but out of Phase 5's declared scope at the time — the client's overview described Hardhat + static frontend, no own server, and it wasn't explicitly requested then). Kept as a recommended future improvement.
 
-## Revisión crítica — Fase 5 (2026-07-08): subida de metadata a IPFS desde el navegador
+## Decision reversed (2026-07-10): Option 2 implemented — minimal backend
+Abraham authorized and the dismissed Option 2 above was implemented: a minimal Express `/backend`, the only holder of `PINATA_JWT`. Two endpoints (`/api/pin-file`, `/api/pin-json`); frontend now calls `VITE_BACKEND_URL` instead of Pinata directly. Minimal controls: CORS restricted to one origin, server-side MIME whitelist, 10 MB limit (client-side validation is UX only, evadable). **Deliberately not implemented at the time:** caller authentication, rate limiting, quota — critical because the Pinata account is free tier (1 GB total); anyone reaching the endpoint could exhaust it (addressed in the "wallet auth + daily limit" work, see `04_STATUS.md`). Why the backend became worth it now: the risk surface shifted from "anyone can read the JWT from the bundle" (high risk, no client-side mitigation possible) to "anyone can call the endpoint without limit" (medium risk, mitigable — bounded, pending work). Still simpler than a full backend with DB/users: just a validating proxy, no persistent state of its own (until the SQLite work later).
 
-**Problema real, no hipotetico:** Fase 5 requiere subir la metadata de cada campaña a IPFS antes de llamar a `createProject`. El unico proveedor disponible en este proyecto es Pinata, y no existe un backend propio (el stack completo es Hardhat + frontend estatico) que pueda actuar de proxy y ocultar la credencial. Esto deja dos opciones reales, no tres:
-
-1. **Subir directo desde el navegador con una API key de Pinata embebida** (`VITE_PINATA_JWT`) — la opcion implementada. Cualquiera puede extraer esa key del bundle de JS publico e inspeccionarla.
-2. **Agregar un backend/funcion serverless minima** que reciba el archivo, guarde el JWT del lado del servidor, y solo exponga un endpoint propio al frontend — mas seguro, pero fuera del alcance de Fase 5 (agrega una pieza de infraestructura nueva no pedida por el cliente).
-
-**Decision tomada:** opcion 1, con mitigacion obligatoria — usar una **API key de Pinata con scope restringido** (Pinata permite crear keys limitadas a `pinFileToIPFS`/`pinJSONToIPFS`, sin permisos de administracion, borrado masivo, ni acceso a otras campañas/cuentas). Con esa key, el peor caso de una key filtrada es que un tercero suba contenido arbitrario contra la cuota de Abraham (costo/abuso de cuota), **no** que pueda borrar, listar, o modificar contenido existente. Documentado en `frontend/.env.example` y `04_STATUS.md` § Fase 5.
-
-**Por que no se implemento la opcion 2 en su momento:** agregar un backend nuevo cambiaba la arquitectura del proyecto (00_PROJECT_OVERVIEW.md la definia como Hardhat + frontend estatico, sin servidor propio) y no habia sido pedido explicitamente en Fase 5. Quedo como mejora recomendada, a ejecutar si el cliente crecia o el abuso de cuota se volvia un problema real.
-
-## Decision revertida (2026-07-10): se implementa la opcion 2 — backend minimo
-
-Abraham autorizo y se implemento la **opcion 2** descartada arriba: un backend Express minimo en `/backend` que es el unico que conoce `PINATA_JWT`. El frontend ya no tiene ningun JWT de Pinata en su bundle.
-
-- **Que hace:** dos endpoints, `POST /api/pin-file` (multipart, reenvia a `pinFileToIPFS`) y `POST /api/pin-json` (reenvia a `pinJSONToIPFS`). El frontend (`usePinataUpload.ts`) ahora llama a `VITE_BACKEND_URL` en vez de `api.pinata.cloud` directamente.
-- **Control minimo aplicado ahora:** CORS restringido a un unico origen (`FRONTEND_ORIGIN`), whitelist de MIME types (`application/pdf`, `text/plain`, imagenes comunes) y limite de 10 MB por archivo — validado en el servidor, no solo en el cliente (la validacion del cliente en `CreateProjectForm.tsx` se puede evadir; esta es la que realmente cuenta).
-- **Lo que NO se implemento todavia (a proposito, fuera de alcance de esta tarea):** autenticacion de quien llama al backend (hoy cualquiera que conozca la URL puede subir archivos, solo limitado por CORS de navegador, que un script fuera del navegador evade trivialmente), rate limiting, y control de cuota. Esto es critico porque **la cuenta de Pinata usada es del plan gratuito (1 GB total)**: sin limite de uso, cualquiera que llegue al endpoint puede agotar la cuota completa de Abraham. Documentado como pendiente inmediato en `04_STATUS.md` § "Backend Pinata" y como candidato a resolver antes de exponer el backend fuera de `localhost`.
-- **Por que ahora si se justifica el backend:** la superficie de riesgo dejo de ser "cualquiera puede leer el JWT del bundle" (riesgo alto, sin mitigacion real posible del lado del cliente) a "cualquiera puede llamar al endpoint sin limite" (riesgo medio, mitigable con rate limiting/API key propia, que es trabajo pendiente pero acotado). Sigue siendo una arquitectura mas simple que un backend completo con base de datos/usuarios: es solo un proxy con validacion, sin estado persistente propio.
-
-## Nueva funcion: `deleteProject` (2026-07-16)
-
-Abraham pidio que el creador de un proyecto pueda borrarlo desde el frontend, haya o no retirado los fondos. Analisis de riesgo antes de implementar:
-
-**Por que un borrado incondicional seria un bug critico:** `delete projects[id]` resetea todo el struct a sus valores por defecto, incluido `pledged` (vuelve a 0) y `claimed` (vuelve a `false`). Si se permitiera borrar un proyecto con `pledged > 0 && !claimed` (fondos de backers todavia dentro del contrato, sin reclamar), cualquier backer que llamara `refund` despues subiria `pledges[id][backer] > 0` contra un `project.pledged` ya en 0 — la resta `project.pledged -= amount` desbordaria (panic 0x11, `checked` arithmetic de Solidity 0.8) y revertiria **siempre**, dejando ese ETH bloqueado en el contrato para siempre (viola la regla dura de `02_SMART_CONTRACT_SPEC.md`: "ninguna ruta de fondos sin salida"). No hay forma de que ese backer recupere su aporte una vez borrado el proyecto en ese estado.
-
-**Decision tomada:** `deleteProject` solo se permite si `pledged == 0` (nunca hubo aportes, o todos los backers ya se reembolsaron) o `claimed == true` (el creador ya retiro el total; los backers que no se reembolsaron antes del claim ya perdieron esa via de todas formas, borrar despues no empeora nada). Se agrego el error `ProjectHasActiveFunds` para el caso bloqueado. Cubre el pedido de Abraham ("haya o no retirado los fondos") sin abrir el hueco de fondos bloqueados.
-
-**Efecto secundario detectado y corregido:** tras un `delete`, `creator` vuelve a `address(0)` pero `id < nextProjectId` sigue siendo cierto, asi que `_requireProjectExists` no detecta el borrado por si solo — sin un chequeo extra, cualquiera podria seguir llamando `pledge(id)` sobre un proyecto "borrado" (quedaria con `creator == address(0)`, fondos nunca reclamables por nadie pero siempre reembolsables via `refund`, ya que `claimed` tambien vuelve a `false`: no hay perdida de fondos, pero si un estado fantasma confuso). Se corrigio extendiendo el chequeo existente de `pledge`: `if (projects[id].claimed || projects[id].creator == address(0)) revert ProjectClosed(id);`.
-
-**Frontend:** boton "Eliminar proyecto" en `ProjectDetail.tsx`, visible solo si `isCreator && (project.claimed || project.pledged === 0n)` (mismo criterio que el contrato, no una heuristica distinta), con `window.confirm` por ser una accion irreversible. `useProjects.ts` (listado) filtra proyectos con `creator == address(0)` para no mostrar "proyectos fantasma". Nuevo hook `useDeleteProject.ts`, mismo patron que `useRefund.ts`/`useClaimFunds.ts` (gas explicito: 120_000n, sin interaction externa).
-
-**Tests agregados:** `test/Crowdfunding.ts` § `deleteProject` — borrado exitoso (sin pledges y con `claimed`), revert `ProjectHasActiveFunds` con pledges activos (y se confirma que el backer igual puede hacer `refund` normalmente), borrado tras reembolso completo, revert `NotProjectCreator`/`ProjectNotFound`, y que un proyecto borrado ya no acepta `pledge` (`ProjectClosed`).
-
-**IMPORTANTE — requiere redeploy:** este cambio modifica el bytecode de `Crowdfunding.sol` (nueva funcion, nuevo error, nuevo evento, chequeo extra en `pledge`). El contrato ya desplegado en Sepolia (`0x0C83FeC42a3A4fCc1eba99175aAE52EE16536396`) NO tiene `deleteProject` y seguira sin tenerlo hasta un nuevo deploy. Hardhat Ignition no redeploya si ya existe un journal completo para el mismo id de red — hay que forzar un `IGNITION_DEPLOYMENT_ID` nuevo (mismo bug ya documentado en `04_STATUS.md` § Sesion 2026-07-14, usar `IGNITION_DEPLOYMENT_ID`, no `DEPLOYMENT_ID`, para no colisionar con la deteccion de CI de `hardhat-keystore`):
-```bash
-IGNITION_DEPLOYMENT_ID=sepolia-v3 npx hardhat run scripts/deploy.ts --network sepolia
-npx hardhat verify --network sepolia <DIRECCION_NUEVA>
-```
-Despues, actualizar `frontend/.env` (`VITE_CROWDFUNDING_ADDRESS_SEPOLIA`) con la direccion nueva.
+## New function: `deleteProject` (2026-07-16)
+Abraham requested a way for a project creator to delete it regardless of whether funds were withdrawn. Risk analysis before implementing:
+**Why an unconditional delete would be a critical bug:** `delete projects[id]` resets `pledged` and `claimed` to their defaults. If deletion were allowed with `pledged > 0 && !claimed` (unclaimed backer funds still in the contract), any backer calling `refund` afterward would push `pledges[id][backer] > 0` against an already-zeroed `project.pledged` — the subtraction `project.pledged -= amount` would underflow (Solidity 0.8 checked arithmetic, panic 0x11) and **always** revert, permanently locking that ETH in the contract, violating the hard "no route for funds without an exit" rule.
+**Decision:** `deleteProject` only allowed if `pledged == 0` (never any pledges, or all backers already refunded) or `claimed == true` (creator already withdrew everything; any backer who didn't refund before the claim already lost that path regardless — deleting afterward doesn't make it worse). New error `ProjectHasActiveFunds` for the blocked case.
+**Side effect found and fixed:** after a `delete`, `creator` resets to `address(0)` but `id < nextProjectId` still holds, so `_requireProjectExists` alone doesn't detect the deletion — without an extra check, `pledge(id)` could still be called on a "deleted" project (funds unclaimable by anyone but still refundable, a confusing ghost state, though not a fund-loss bug). Fixed by extending `pledge`'s existing check: `if (projects[id].claimed || projects[id].creator == address(0)) revert ProjectClosed(id);`.
+**Frontend:** "Delete project" button in `ProjectDetail.tsx`, visible only if `isCreator && (project.claimed || project.pledged === 0n)` (same exact criteria as the contract), `window.confirm` since irreversible. Listing filters out `creator == address(0)` projects. New `useDeleteProject.ts` hook, same pattern as `useRefund`/`useClaimFunds` (explicit gas: 120_000n, no external interaction).
+**Tests added:** happy path (no pledges + with prior claim), `ProjectHasActiveFunds` revert (confirming the backer can still `refund` normally), delete after full refund, `NotProjectCreator`/`ProjectNotFound` reverts, deleted project rejects `pledge`.
+**IMPORTANT — required a redeploy:** bytecode changed (new function/error/event, extra `pledge` check). The Sepolia contract deployed before this did NOT have `deleteProject` until redeployed with a new `IGNITION_DEPLOYMENT_ID` (Ignition doesn't redeploy over an existing complete journal for the same network id).

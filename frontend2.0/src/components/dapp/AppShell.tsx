@@ -38,7 +38,7 @@ export function AppShell() {
             setView({ name: "home" });
           }}
         >
-          Crowdfunding DApp
+          Atlas
         </h1>
         <ConnectWallet />
       </header>

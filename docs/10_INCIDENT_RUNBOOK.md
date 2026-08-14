@@ -1,122 +1,67 @@
-# Runbook de Incidentes — Post-Deploy en Mainnet
+# Incident Runbook — Post-Mainnet-Deploy
 
-**Origen:** `09_ROADMAP_MEJORAS.md` § 10 (Plan de contingencia post-deploy mainnet). Opción A ejecutada (documentación pura, sin cambios de contrato). Opción B (auditoría externa) queda como decisión pendiente de Abraham/Claudio — ver § 5.
+**Origin:** `09_ROADMAP_MEJORAS.md` § 10 (mainnet contingency plan). Option A executed (pure documentation, no contract changes). Option B (external audit) remains pending Abraham/Claudio's decision — see § 5.
 
-**Precondición que no cambia con este documento:** `Crowdfunding.sol` no tiene `onlyOwner` ni mecanismo de pausa (`02_SMART_CONTRACT_SPEC.md`). Es una decisión de seguridad correcta y deliberada (evita rug-pull del propio equipo). Consecuencia directa: **ningún escenario de abajo permite "congelar" el contrato** — la única palanca real es comunicar rápido y deployar un contrato corregido.
+**Precondition unchanged by this document:** `Crowdfunding.sol` has no `onlyOwner`/pause (`02_SMART_CONTRACT_SPEC.md`) — a correct, deliberate security decision (avoids team rug-pull). Direct consequence: **no scenario below allows "freezing" the contract** — the only real lever is fast communication + deploying a corrected contract.
 
-**Limitación inherente, no resoluble por ningún runbook:** fondos ya reclamados (`claimed == true`) antes de detectarse un bug no son recuperables por esta vía — el creador ya los retiró de un contrato sin custodia de terceros.
+**Inherent limitation, no runbook can fix it:** funds already claimed (`claimed == true`) before a bug is detected aren't recoverable this way — the creator already withdrew them from a non-custodial contract.
 
----
+## 1. How an incident is detected
+- **On-chain event monitoring** (minimal viable, no new infra): a simple listener over `ProjectCreated`/`Pledged`/`FundsClaimed`/`Refunded`/`ProjectDeleted` on the mainnet contract (e.g. `viem.watchContractEvent` as a script/cron, not a new service).
+- **External report:** Claudio or a backer reports unexpected behavior (wrong amount, unexplained revert, `refund`/`claimFunds` failing).
+- **Internal finding:** a new test or code review exposes a bug before exploitation (same pattern as the real `TxWatcher` bug, see `05_CRITICAL_REVIEW.md`).
 
-## 1. Cómo se detecta un incidente
+On any of these: go to § 4 (incident log) **before** taking any corrective action.
 
-- **Monitoreo de eventos on-chain** (mínimo viable, sin infraestructura nueva): un listener simple sobre `ProjectCreated`/`Pledged`/`FundsClaimed`/`Refunded`/`ProjectDeleted` del contrato en mainnet (ej. `viem.watchContractEvent`, corrida como script o cron, no un servicio nuevo).
-- **Reporte externo:** Claudio o un backer reporta comportamiento inesperado (monto incorrecto, tx que revierte sin motivo aparente, `refund`/`claimFunds` fallando).
-- **Hallazgo interno:** un test nuevo o una revisión de código expone un bug antes de que se explote (mismo patrón ya ocurrido en este proyecto — ver `05_CRITICAL_REVIEW.md` § bug de `TxWatcher`).
+## 2. Failure scenarios mapped to real contract functions
 
-Ante cualquiera de estas señales: pasar a § 4 (registro de incidente) **antes** de tomar cualquier acción correctiva.
+### 2.1 Bug in `pledge`
+Impact: affects anyone pledging *after* the bug is detected. Immediate action: tell Claudio to stop promoting the "pledge" link while investigating — there's no technical way to block `pledge` on the old contract (no `Pausable`), the only real barrier is redirecting traffic away. Frontend: hide the "Pledge" button via a config flag (e.g. `VITE_PLEDGE_DISABLED=true`) — **not real protection** (anyone can call the contract directly), just stops facilitating the mistake for good-faith UI users while a redeploy is prepared.
 
----
+### 2.2 Bug in `claimFunds`
+Impact: creators with `isSuccessful == true` who haven't claimed yet. Immediate action: identify affected projects (loop `getProject` or accumulated events), contact those creators directly, instruct them **not to call `claimFunds`** until further notice. Note: if the bug is specifically in the transferred-amount calculation, a creator who already claimed with the bug active has no way to reverse that transaction — irreversible by blockchain design.
 
-## 2. Escenarios de fallo mapeados contra las funciones reales del contrato
+### 2.3 Bug in `refund`
+Impact: the most urgent of the 4 — affects any backer of an unsuccessful project, at any time before claim. Immediate action: instruct **all backers with an active pledge** to attempt `refund` immediately, before the corresponding creator calls `claimFunds` (if the bug lets both coexist badly). Prioritize communicating this scenario over the other 3.
 
-### 2.1 Bug en `pledge`
-- **Impacto:** afecta a quien intente aportar *después* de detectado el bug (los pledges ya confirmados no son necesariamente el problema, depende de la naturaleza del bug).
-- **Acción inmediata:** comunicar a Claudio que deje de promocionar el link de "aportar" mientras se investiga. No hay forma técnica de bloquear `pledge` en el contrato viejo (sin `Pausable`) — la única barrera real es dejar de dirigir tráfico a la UI de pledge.
-- **Frontend:** ocultar el botón "Pledge" vía flag de configuración del frontend (ej. variable de entorno `VITE_PLEDGE_DISABLED=true` leída por `PledgeForm.tsx`) — **esto no es una protección real** (cualquiera puede llamar al contrato directo), es solo para dejar de facilitar el error a usuarios de buena fe mientras se prepara el redeploy.
+### 2.4 Bug in `deleteProject`
+Impact: lowest direct financial urgency (already designed to revert if `pledged > 0 && !claimed`, see `05_CRITICAL_REVIEW.md`), but a bug here could leave a project in an inconsistent ghost state. Immediate action: disable the "Delete project" button in the frontend (same flag pattern as § 2.1) until the bug's real scope is confirmed.
 
-### 2.2 Bug en `claimFunds`
-- **Impacto:** afecta a creadores con `isSuccessful == true` que todavía no reclamaron.
-- **Acción inmediata:** identificar (via `getProject` en loop, o el evento `ProjectCreated`/`Pledged` acumulado) qué proyectos están en ese estado. Contactar directamente a esos creadores instruyéndolos a **no llamar `claimFunds`** hasta nuevo aviso.
-- **Nota importante:** si el bug está específicamente en el cálculo de qué se transfiere (ej. un monto incorrecto), un creador que ya reclamó con el bug activo no tiene forma de revertir esa transacción — es irreversible por diseño de blockchain.
+## 3. Communication chain
+1. **Abraham** detects/receives the report → logs the incident (§ 4) → notifies **Claudio** via their established channel (not formally defined in any project doc yet — **pending**: Claudio and Abraham must agree on a fixed channel, e.g. WhatsApp/email, *before* going to mainnet, not during an incident).
+2. **Claudio** approves the message to backers (it's his product/brand, not a technical decision).
+3. **Communication to backers:** via whatever external channels the campaign already uses (social media, email list if one exists) — the contract has no way to notify backers on-chain, so this step depends 100% on channels outside the project. **Accepted risk:** a backer not following those channels may not find out in time — no technical mitigation possible without a notification system that doesn't exist today.
 
-### 2.3 Bug en `refund`
-- **Impacto:** el más urgente de los 4 — afecta a cualquier backer de un proyecto no exitoso, en cualquier momento antes del claim.
-- **Acción inmediata:** instruir a **todos los backers con pledge activo** a intentar `refund` de inmediato, antes de que el creador correspondiente llame `claimFunds` (si el bug permite que ambas cosas coexistan mal). Priorizar la comunicación a este escenario sobre los otros 3.
-
-### 2.4 Bug en `deleteProject`
-- **Impacto:** el de menor urgencia financiera directa (la función ya está diseñada para revertir si `pledged > 0 && !claimed`, ver `05_CRITICAL_REVIEW.md`), pero un bug aquí podría dejar un proyecto en un estado fantasma inconsistente.
-- **Acción inmediata:** deshabilitar el botón "Eliminar proyecto" en el frontend (mismo patrón de flag que § 2.1) hasta confirmar el alcance real del bug.
-
----
-
-## 3. Cadena de comunicación
-
-1. **Abraham** detecta o recibe el reporte → registra el incidente (§ 4) → notifica a **Claudio** por el canal ya establecido con él (no definido formalmente en ningún doc del proyecto — **pendiente**: Claudio y Abraham deben acordar un canal fijo, ej. WhatsApp/email, *antes* de ir a mainnet, no durante un incidente).
-2. **Claudio** aprueba el mensaje a backers (es su producto/marca, no una decisión técnica).
-3. **Comunicación a backers:** vía los canales que la campaña ya use externamente (redes sociales, email si existiera lista) — el contrato no tiene forma de notificar on-chain a los backers, así que este paso depende 100% de canales fuera del proyecto. **Riesgo aceptado:** un backer que no siga esos canales puede no enterarse a tiempo — no hay mitigación técnica posible sin un sistema de notificaciones que hoy no existe.
-
----
-
-## 4. Registro de incidente (checklist mínimo, completar en cada evento)
-
+## 4. Incident log (minimum checklist, fill per event)
 ```
-Fecha/hora detección:
-Función afectada (pledge / claimFunds / refund / deleteProject):
-Tx hash del bug (si aplica, primera ocurrencia observada):
-Proyectos afectados (IDs):
-Monto de fondos en riesgo (estimado):
-Vía de detección (monitoreo / reporte externo / hallazgo interno):
-Acción tomada:
-Responsable:
-Estado (abierto / mitigado / cerrado):
+Detection date/time:
+Affected function (pledge / claimFunds / refund / deleteProject):
+Bug's tx hash (if applicable, first observed occurrence):
+Affected projects (IDs):
+Estimated funds at risk:
+Detection method (monitoring / external report / internal finding):
+Action taken:
+Owner:
+Status (open / mitigated / closed):
 ```
-Guardar cada incidente como un archivo `docs/incidents/YYYY-MM-DD-<slug>.md` (carpeta a crear en el primer incidente real).
+Save each incident as `docs/incidents/YYYY-MM-DD-<slug>.md` (folder to create on the first real incident).
 
----
+## 5. Manual migration (no automatic fund migration)
+**What it DOES:** recreates active campaigns' registry on a new, corrected contract, preserving `metadataCID` (IPFS metadata doesn't change).
+**What it DOES NOT do:** move funds. Old-contract funds only leave via that same contract's `refund`/`claimFunds` — there is (and shouldn't be) a function moving ETH between contracts without going through its legitimate owners.
 
-## 5. Migración manual (sin migración automática de fondos)
+### `scripts/migrate-projects.ts` spec (not implemented yet — spec for when authorized)
+1. Read all old-contract projects: `getProject(id)` looped from `0` to `nextProjectId`.
+2. Filter migration candidates: `creator != address(0)` (not deleted) and `!claimed` (already-claimed projects finished their lifecycle, nothing to migrate).
+3. Per candidate: call `createProject(goal, metadataCID)` on the **new** contract, using the original creator's own wallet (requires the creator to sign their own tx — this script can't sign on behalf of third parties).
+4. **`pledged` is NOT transferred:** the new project starts at `pledged = 0`. Old-contract backers must (a) `refund` on the old contract (recover their ETH), and (b) optionally re-pledge on the recreated project in the new contract. This is an accepted design limitation, not a script bug — there's no safe way to "copy" balances without the old contract custodying funds it no longer controls.
 
-**Lo que SÍ hace:** recrea el registro de campañas activas en un contrato nuevo corregido, preservando `metadataCID` (la metadata en IPFS no cambia).
-
-**Lo que NO hace:** mover fondos. Los fondos del contrato viejo solo salen vía `refund`/`claimFunds` de ese mismo contrato — no existe (ni debería existir) una función que mueva ETH entre contratos sin pasar por sus dueños legítimos.
-
-### Especificación de `scripts/migrate-projects.ts` (no implementado todavía — spec para cuando se autorice)
-1. Leer todos los proyectos del contrato viejo: `getProject(id)` en loop desde `0` hasta `nextProjectId`.
-2. Filtrar candidatos a migrar: proyectos con `creator != address(0)` (no borrados) y `!claimed` (si ya se reclamó, el proyecto terminó su ciclo de vida, no hay nada que migrar).
-3. Para cada candidato: llamar `createProject(goal, metadataCID)` en el contrato **nuevo**, con la wallet del propio creador original (requiere que el creador ejecute su propia transacción — este script no puede firmar en nombre de terceros).
-4. **No transferir `pledged`:** el proyecto nuevo empieza en `pledged = 0`. Los backers del proyecto viejo deben:
-   - Pedir `refund` en el contrato viejo (recuperan su ETH), y
-   - Opcionalmente, volver a hacer `pledge` en el proyecto recreado en el contrato nuevo.
-   Esto es una limitación de diseño aceptada, no un bug del script: no hay forma segura de "copiar" balances sin que el contrato viejo custodie fondos que ya no controla.
-
----
-
-## 6. Decisiones pendientes de Abraham/Claudio (no asumidas por este documento)
-
-| Punto | Estado |
+## 6. Decisions pending Abraham/Claudio (not assumed by this document)
+| Point | Status |
 |---|---|
-| Opción B (auditoría externa profesional antes de mainnet) | **Pendiente de decisión explícita** — es una decisión de presupuesto de Claudio, no técnica. Este runbook no la reemplaza: reduce el *después*, no el *antes*. |
-| Opción C (Pausable + multisig) | Descartada por recomendación técnica (ver `09_ROADMAP_MEJORAS.md` § 10) — reintroduce un rol privilegiado sobre un contrato diseñado explícitamente para no tenerlo. No revisitar salvo que A resulte insuficiente en la práctica (un incidente real donde la falta de pausa cause pérdida evitable). |
-| Canal fijo de comunicación Abraham↔Claudio↔backers | **No definido.** Debe acordarse antes del deploy en mainnet, no durante un incidente. |
+| Option B (professional external audit before mainnet) | **Pending explicit decision** — Claudio's budget call, not technical. This runbook doesn't replace it: it reduces the *after*, not the *before*. |
+| Option C (Pausable + multisig) | Rejected on technical recommendation (`09_ROADMAP_MEJORAS.md` § 10) — reintroduces a privileged role over a contract explicitly designed not to have one. Not to be revisited unless A proves insufficient (a real incident where the lack of pause caused avoidable loss). |
+| Fixed Abraham↔Claudio↔backers communication channel | **Not defined.** Must be agreed before mainnet deploy, not during an incident. |
 
----
-
-## Fuente de los criterios de seguridad aplicados
-- Ausencia de `onlyOwner`/pausa: decisión ya documentada y justificada en `02_SMART_CONTRACT_SPEC.md` § "Por qué el contrato nunca queda bloqueado".
-- Patrón pull-payment / irreversibilidad de `claimFunds`: `01_ARCHITECTURE.md` § 1.
-- Precedente de redeploy sin migración de fondos (mismo mecanismo, en testnet): `05_CRITICAL_REVIEW.md` § "Nueva función: deleteProject" y § "Decision revertida... backend mínimo" (mismo patrón de "nuevo deploy, dirección nueva, `.env` actualizado").
-
-## Apéndice A — Incidente técnico de frontend: Lighthouse `NO_FCP`
-
-Este incidente no afectaba fondos ni transacciones, pero bloqueaba la medición local de rendimiento. La referencia completa está en `09_ROADMAP_MEJORAS.md` § 7.
-
-### Síntoma
-
-`npm run build` generaba SSR válido y el navegador mostraba la landing, pero Lighthouse terminaba con `NO_FCP`. Una página estática mínima pasaba. Bloquear JavaScript no lo solucionaba.
-
-### Diagnóstico correcto
-
-La condición suficiente era una animación CSS above-the-fold cuyo frame inicial tenía `opacity: 0` y `animation-fill-mode: both`. La animación `reveal-immediate-in` dejaba el contenido en un estado no pintable cuando Lighthouse/CDP pausaba o no avanzaba el reloj de animaciones. No asumir que un HTML SSR correcto descarta un problema de CSS de pintura.
-
-### Corrección
-
-Animar únicamente `transform` y dejar `opacity` sin animar, de forma que el elemento sea visible/pintable desde el primer frame. No eliminar la landing, SSR, JavaScript ni Lighthouse para ocultar el síntoma. Antes de continuar con el diagnóstico, reinstalar con `npm ci` si existe evidencia de mezcla de `npm` y `pnpm`.
-
-### Checklist de regresión
-
-1. `cd frontend2.0 && npm ci`
-2. `npm run build`
-3. `npm run preview`
-4. Medir la URL del preview con Lighthouse.
-5. Si vuelve `NO_FCP`, comparar una corrida con las animaciones above-the-fold desactivadas y revisar primero `opacity: 0`, `visibility: hidden` y `animation-fill-mode: both`.
+## Source of applied security criteria
+No `onlyOwner`/pause: `02_SMART_CONTRACT_SPEC.md` § "Why the contract can never get stuck". Pull-payment pattern / `claimFunds` irreversibility: `01_ARCHITECTURE.md` § 1. Precedent of redeploy without fund migration (same mechanism, testnet): `05_CRITICAL_REVIEW.md` § "deleteProject" and § "Decision reversed... minimal backend" (same "new deploy, new address, `.env` updated" pattern).

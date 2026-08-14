@@ -77,21 +77,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta: [
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
-        { title: "Crowdfunding DApp — on-chain case study" },
+        { title: "Atlas — Non-custodial Crowdfunding Escrow Protocol" },
         {
           name: "description",
           content:
-            "On-chain crowdfunding dApp built by a freelance Solidity and web3 frontend engineer.",
+            "Atlas is an on-chain crowdfunding protocol: funds are held by the smart contract, never by a person or platform. Deployed, tested, and statically audited.",
         },
         { name: "author", content: "Abraham" },
         {
           property: "og:title",
-          content: "Crowdfunding DApp — on-chain case study",
+          content: "Atlas — Non-custodial Crowdfunding Escrow Protocol",
         },
         {
           property: "og:description",
           content:
-            "On-chain crowdfunding dApp built by a freelance Solidity and web3 frontend engineer.",
+            "Atlas is an on-chain crowdfunding protocol: funds are held by the smart contract, never by a person or platform. Deployed, tested, and statically audited.",
         },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },

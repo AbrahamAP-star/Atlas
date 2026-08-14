@@ -25,21 +25,21 @@ export const Route = createFileRoute("/")({
     meta: [
       {
         title:
-          "Crowdfunding DApp — Solidity + web3 frontend engineering case study",
+          "Atlas — Non-custodial Crowdfunding Escrow Protocol",
       },
       {
         name: "description",
         content:
-          "On-chain crowdfunding dApp: funds that never get stuck, no middlemen, transient reentrancy protection, static analysis, and a production stack.",
+          "Atlas is an on-chain crowdfunding protocol: funds are held by the smart contract, never by a person or platform. Deployed, tested, and statically audited.",
       },
       {
         property: "og:title",
-        content: "Crowdfunding DApp — on-chain case study",
+        content: "Atlas — Non-custodial Crowdfunding Escrow Protocol",
       },
       {
         property: "og:description",
         content:
-          "Technical portfolio of a freelance Solidity and web3 frontend engineer.",
+          "Atlas is an on-chain crowdfunding protocol: funds are held by the smart contract, never by a person or platform. Deployed, tested, and statically audited.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
