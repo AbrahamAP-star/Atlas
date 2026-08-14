@@ -89,3 +89,9 @@ Requires Foundry (`anvil`) installed. Full detail, why Synpress/real MetaMask is
 - Architecture decisions and rationale: `docs/01_ARCHITECTURE.md`, `docs/05_CRITICAL_REVIEW.md`
 - Pending improvements roadmap: `docs/09_ROADMAP_MEJORAS.md`
 - Non-technical user guide (Spanish, for Claudio): `docs/11_USER_GUIDE.md`
+
+## A note on network choice
+
+This project is built and optimized for L2 deployment (Base). Gas limits, `ReentrancyGuardTransient`, and the overall architecture were designed and tested with L2 costs in mind — mainnet L2 deploy is ready to go, no blockers on the code side.
+
+Mainnet deployment hasn't happened yet due to lack of funds. I´m Sorry.
