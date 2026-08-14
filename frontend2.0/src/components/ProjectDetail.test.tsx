@@ -14,6 +14,10 @@ vi.mock("@/hooks/useProjects", () => ({ useProject: vi.fn() }));
 vi.mock("@/hooks/useProjectMetadata", () => ({ useProjectMetadata: vi.fn() }));
 vi.mock("@/hooks/useProjectStatus", () => ({ useProjectStatus: vi.fn() }));
 vi.mock("@/hooks/useNetworkStatus", () => ({ useNetworkStatus: vi.fn() }));
+// Real usePledgeAge calls wagmi's usePublicClient, which throws without a
+// WagmiProvider — this file never mounts one, so it must be mocked like
+// every other hook here. Its own behavior is covered in usePledgeAge.test.ts.
+vi.mock("@/hooks/usePledgeAge", () => ({ usePledgeAge: vi.fn() }));
 vi.mock("@/hooks/useClaimFunds", () => ({ useClaimFunds: vi.fn() }));
 vi.mock("@/hooks/useRefund", () => ({ useRefund: vi.fn() }));
 vi.mock("@/hooks/useDeleteProject", () => ({ useDeleteProject: vi.fn() }));
@@ -32,6 +36,7 @@ import { useProject } from "@/hooks/useProjects";
 import { useProjectMetadata } from "@/hooks/useProjectMetadata";
 import { useProjectStatus } from "@/hooks/useProjectStatus";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { usePledgeAge } from "@/hooks/usePledgeAge";
 import { useClaimFunds } from "@/hooks/useClaimFunds";
 import { useRefund } from "@/hooks/useRefund";
 import { useDeleteProject } from "@/hooks/useDeleteProject";
@@ -71,6 +76,13 @@ function mockAll(overrides: {
   } as never);
   vi.mocked(useNetworkStatus).mockReturnValue({
     canInteract: overrides.canInteract ?? true,
+  } as never);
+  // Purely informational (roadmap §14): irrelevant to which buttons render,
+  // so every test gets the same silent default unless it says otherwise.
+  vi.mocked(usePledgeAge).mockReturnValue({
+    lastPledgedAt: undefined,
+    daysSinceLastPledge: undefined,
+    isLoading: false,
   } as never);
   vi.mocked(useProjectStatus).mockReturnValue({
     isSuccessful: overrides.isSuccessful ?? false,

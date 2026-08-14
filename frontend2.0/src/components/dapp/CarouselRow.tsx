@@ -28,7 +28,7 @@ export function CarouselRow({
     return (
       <div className="carousel-row carousel-row--static">
         {items.map((item) => (
-          <ShowcaseCard key={item.id} item={item} priority />
+          <ShowcaseCard key={item.id} item={item} />
         ))}
       </div>
     );
@@ -43,8 +43,9 @@ export function CarouselRow({
   return (
     <div ref={rowRef} className="carousel-row" aria-hidden="true">
       <div ref={trackRef} className="carousel-track">
+        {/* No priority: this Hero lives below the fold inside #demo, not the page's first paint (docs/08_FRONTEND_MIGRATION.md). */}
         {loopItems.map((item, i) => (
-          <ShowcaseCard key={`${item.id}-${i}`} item={item} priority={i < 3} />
+          <ShowcaseCard key={`${item.id}-${i}`} item={item} />
         ))}
       </div>
     </div>

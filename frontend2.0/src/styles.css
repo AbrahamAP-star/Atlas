@@ -133,15 +133,13 @@
 
 /* Above-the-fold variant: same visual effect as .reveal, but driven by a
    plain CSS animation (compositor), not IntersectionObserver + hydration.
-   Content the user already sees without scrolling must not wait on JS to
-   paint — that was blocking FCP under throttled load. */
+   Keep opacity out of the animation: content must be paintable at the first
+   frame, even if a Lighthouse/CDP run pauses or does not advance the clock. */
 @keyframes reveal-immediate-in {
   from {
-    opacity: 0;
     transform: translateY(16px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -1010,6 +1008,23 @@
   padding: 0 0.25rem;
   font-size: 0.9rem;
   line-height: 1;
+}
+
+/* PledgeAgeBanner (docs/09_ROADMAP_MEJORAS.md §14) — informational only,
+   never a warning: reuses --accent (same tone as the progress bar), not
+   --danger, since a quiet project is not a risk in this contract's model. */
+.stale-pledge-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.7rem 0.95rem;
+  margin: 0.75rem 0;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--panel-2);
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 /* ContractRiskNotice — reuses existing tokens, no new colors invented.

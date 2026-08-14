@@ -11,7 +11,9 @@ import { sepolia, baseSepolia, foundry, type Chain } from "wagmi/chains";
 // .env.e2e.local (see frontend2.0/e2e/README.md). Production builds never
 // see this env var, so the real app's chain list is unchanged.
 const chains: readonly [Chain, ...Chain[]] =
-  import.meta.env.VITE_E2E === "true" ? [foundry, baseSepolia, sepolia] : [baseSepolia, sepolia];
+  import.meta.env.VITE_E2E === "true"
+    ? [foundry, baseSepolia, sepolia]
+    : [baseSepolia, sepolia];
 
 // `ssr: true` (added during the migration to frontend2.0/TanStack Start,
 // docs/08_FRONTEND_MIGRATION.md): the old frontend was a Vite SPA with no

@@ -63,5 +63,14 @@ export default tseslint.config(
       "react-refresh/only-export-components": "off",
     },
   },
+  {
+    // Playwright fixture callbacks also conventionally receive a `use`
+    // function. It is unrelated to React hooks, so the React Hooks rule must
+    // not inspect this test-only integration layer.
+    files: ["e2e/**/*.{ts,tsx}"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
   eslintPluginPrettier,
 );

@@ -40,10 +40,10 @@ Cada fase es independiente y termina en un estado funcional/testeable. No avanza
 - [x] Documento adjunto (PDF/texto) opcional en "Crear proyecto", subido a IPFS junto a imagen/metadata — `CreateProjectForm.tsx` + `usePinataUpload.ts` (`documentCID`), ver `04_STATUS.md` § "Mejora Fase 5 (2026-07-08)". Validacion de tipo (`application/pdf`/`text/plain`) y tamano (10 MB) en el cliente.
 - [x] `ProjectDetail.tsx` muestra/enlaza el `documentCID` en la vista de detalle — link "view attached document" via `documentUrl` (`useProjectMetadata`), agregado en la sesion "Fix (2026-07-16)" (`04_STATUS.md`). Confirmado contra el codigo real y cerrado en `09_ROADMAP_MEJORAS.md` § 6 (2026-07-20).
 ## Fase 6 — Deploy final y documentación
-- [ ] Deploy en mainnet de la L2 elegida
-- [ ] `README.md` para usuario final (cómo conectar wallet, crear proyecto, aportar, reclamar/reembolso)
-- [ ] Documentación técnica final (arquitectura, decisiones, cómo correr el proyecto localmente)
-- [ ] Actualizar `04_STATUS.md`
+- [ ] Deploy en mainnet de la L2 elegida — **bloqueado a propósito**: sin fondos aún, pendiente de aviso explícito de Abraham (ver `04_STATUS.md`).
+- [x] `README.md` para usuario final (cómo conectar wallet, crear proyecto, aportar, reclamar/reembolso) — `docs/11_USER_GUIDE.md` (2026-08-04), describe la Sepolia actual, se actualizará con la dirección real cuando exista deploy en mainnet.
+- [x] Documentación técnica final (arquitectura, decisiones, cómo correr el proyecto localmente) — ya cubierta por `README.md` (raíz, traducido a inglés en esta sesión) + `01_ARCHITECTURE.md`/`05_CRITICAL_REVIEW.md`/`08_FRONTEND_MIGRATION.md`; sin huecos nuevos detectados.
+- [x] Actualizar `04_STATUS.md` — ver sesión 2026-08-04.
 ## Fase 7 (futuro, NO ahora) — Crecimiento
 - Fees de plataforma, multi-token (ERC-20 además de nativo), gobernanza, sistema de reputación de creadores, indexador (The Graph) para no depender solo de eventos on-chain.
 

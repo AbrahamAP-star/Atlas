@@ -1,6 +1,6 @@
 # Status
 
-Fecha última actualización: 2026-07-19 (ver "Sesion 2026-07-19 (3): CI (GitHub Actions)" para el detalle mas reciente)
+Fecha última actualización: 2026-08-14 (ver "Sesion 2026-08-14: cierre de NO_FCP y limpieza de release" para el detalle mas reciente)
 
 **Roadmap de mejoras pendientes (post-review 2026-07-19):** ver `09_ROADMAP_MEJORAS.md` — 8 puntos priorizados con opciones para decidir, no acciones ya ejecutadas.
 
@@ -610,3 +610,31 @@ Agregado `.github/workflows/ci.yml`, 3 jobs:
 
 **Pendiente no bloqueante:** correr un PR real para confirmar que el comentario de gas-report se postea correctamente (no verificable desde este entorno sin acceso a GitHub Actions en ejecucion).
 
+## Sesion 2026-08-04: analisis UX del modelo sin deadline — punto 14 de `09_ROADMAP_MEJORAS.md` CERRADO
+
+Opcion A del roadmap (decision de Abraham + Claudio), solo frontend, sin tocar `Crowdfunding.sol`. Detalle completo de la decision y por que se descartaron B/C: `09_ROADMAP_MEJORAS.md` § 14.
+
+- **`frontend2.0/src/hooks/usePledgeAge.ts`** (nuevo): calcula dias desde el ultimo evento `Pledged` de un proyecto, leyendo logs via `getContractEvents` (ventana de 60 dias de bloques, fallback a chunks de 10k bloques si el RPC rechaza el rango amplio). Solo se usa en `ProjectDetail.tsx`, nunca en el listado — leer logs es mas caro que las lecturas de struct via multicall que ya hace `useProjects.ts`.
+- **`frontend2.0/src/lib/pledgeAgeBanner.ts`** (nuevo): logica pura del umbral (`STALE_PLEDGE_THRESHOLD_DAYS = 30`), separada del componente para quedar testeable sin montar React, mismo patron que `lib/projectPermissions.ts`.
+- **`frontend2.0/src/components/PledgeAgeBanner.tsx`** (nuevo) + integrado en `ProjectDetail.tsx`: banner informativo, nunca gatea ningun boton — `refund`/`claim` los sigue decidiendo solo `lib/projectPermissions.ts`.
+- **`frontend2.0/src/styles.css`**: clase `.stale-pledge-banner` agregada (faltaba, hueco real encontrado al revisar el trabajo de la sesion anterior antes de continuar).
+
+**Tests nuevos:** `lib/pledgeAgeBanner.test.ts` (5), `components/PledgeAgeBanner.test.tsx` (3), `hooks/usePledgeAge.test.ts` (4) — cubren el umbral (borde exacto incluido), el render condicional en el DOM, y el calculo real de dias con logs/bloques mockeados (incluido el fallback de chunking).
+
+**Bug real encontrado y corregido (no cosmetico):** `ProjectDetail.test.tsx` (sesion 2026-07-20) nunca mockeaba `usePledgeAge` — al quedar integrado el hook real en `ProjectDetail.tsx` en la sesion anterior (interrumpida), esos 5 tests existentes habrian roto en la proxima corrida real (`usePublicClient` de wagmi lanza sin `WagmiProvider`, que ese archivo no monta). Corregido agregando el mock, mismo patron que el resto del archivo.
+
+**Segundo bug real, encontrado por Abraham al correr los tests (`npm run test`, 54/54 en verde pero con un warning en stderr):** React Query trata `undefined` devuelto por un `queryFn` como "sin dato" (advertencia de dev, la query nunca asienta como `success` limpio) — el caso legitimo "el proyecto no tiene pledges todavia" devolvia `undefined` desde `queryFn`, disparando `Query data cannot be undefined`. Corregido en `usePledgeAge.ts`: `queryFn` ahora devuelve `null` como sentinel valido para ese caso, convertido de vuelta a `undefined` fuera del `useQuery` para no cambiar la API publica del hook (`PledgeAgeResult.lastPledgedAt` sigue siendo `number | undefined`). No requirio cambios en los tests: mockean `getBlockNumber`/`getContractEvents`/`getBlock`, no el `queryFn` directamente.
+
+**Confirmado por Abraham (2026-08-04):** `npm run test` real, **54/54 tests en verde** (11 archivos), incluidos los 12 nuevos/corregidos de esta sesion.
+
+**Pendiente no bloqueante:** ninguno — corrida real ya confirmada.
+
+## Sesion 2026-08-14: cierre de `NO_FCP` y limpieza de release
+
+El `NO_FCP` local quedó reproducido y resuelto. El problema era la animación CSS `reveal-immediate-in` aplicada al Hero: su frame inicial tenía `opacity: 0` y `animation-fill-mode: both`. Bajo una captura Lighthouse/CDP que no avanzaba correctamente la animación, el contenido SSR permanecía no pintable y no se registraba FCP. La matriz mínima confirmó que la animación por sí sola era suficiente para reproducirlo, sin JavaScript ni DOM grande.
+
+La solución conserva el efecto de entrada mediante `transform: translateY(...)`, pero elimina `opacity` del keyframe. Así el contenido permanece pintable desde el primer frame incluso si la animación se pausa. La corrección vive en `frontend2.0/src/styles.css` y se cubre con la build real de preview.
+
+También se reparó el lint completo del frontend: Prettier se aplicó a los archivos afectados y la regla de React Hooks se desactivó únicamente para `e2e/**/*`, donde Playwright usa legítimamente callbacks llamados `use`. Resultado final: `npm run lint` sin errores, `npm run test` con 54/54 y `npm run build` correcto.
+
+Se eliminaron artefactos locales no necesarios para el proyecto: reportes JSON de Lighthouse fallidos, capturas/logs de diagnóstico GPU, el `pnpm-lock.yaml` que podía provocar una instalación incompatible con el flujo soportado por `npm ci`, el lock de skills local, `.agents` generado, `proyecto.zip` y el archivo temporal vacío `docs/12_DEBUG_TEMPORAL`. El diagnóstico reproducible permanece en esta documentación, no en binarios o reportes efímeros.

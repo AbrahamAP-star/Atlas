@@ -4,6 +4,7 @@ import { useAccount } from "wagmi";
 import { useProject } from "@/hooks/useProjects";
 import { useProjectMetadata } from "@/hooks/useProjectMetadata";
 import { useProjectStatus } from "@/hooks/useProjectStatus";
+import { usePledgeAge } from "@/hooks/usePledgeAge";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useClaimFunds } from "@/hooks/useClaimFunds";
 import { useRefund } from "@/hooks/useRefund";
@@ -11,6 +12,7 @@ import { useDeleteProject } from "@/hooks/useDeleteProject";
 import { PledgeForm } from "./PledgeForm";
 import { TransactionStatus } from "./TransactionStatus";
 import { ContractRiskNotice } from "./ContractRiskNotice";
+import { PledgeAgeBanner } from "./PledgeAgeBanner";
 import { playBackSound, playDeleteSound } from "@/lib/sounds";
 import {
   canPledgeProject,
@@ -34,6 +36,7 @@ export function ProjectDetail({ id, onBack }: Props) {
   const { address: account } = useAccount();
   const network = useNetworkStatus();
   const projectStatus = useProjectStatus(id);
+  const pledgeAge = usePledgeAge(id);
   const claim = useClaimFunds(projectStatus.address);
   const refund = useRefund(projectStatus.address);
   const deleteProjectTx = useDeleteProject(projectStatus.address);
@@ -121,6 +124,10 @@ export function ProjectDetail({ id, onBack }: Props) {
           ? "This project was already withdrawn by its creator: it no longer accepts pledges."
           : "This project has no closing date: it stays open to receiving pledges, even after reaching the goal, until the creator decides to withdraw the funds."}
       </p>
+      <PledgeAgeBanner
+        claimed={project.claimed}
+        daysSinceLastPledge={pledgeAge.daysSinceLastPledge}
+      />
       <p>
         Metadata:{" "}
         {/* Pinata gateway (not ipfs.io): content freshly pinned on the free plan
@@ -177,6 +184,10 @@ export function ProjectDetail({ id, onBack }: Props) {
 
       {canRefund && (
         <div className="action-block">
+          <p className="field-hint">
+            You can request a refund at any time before the creator claims the
+            funds — there is no deadline pressuring you either way.
+          </p>
           <button
             onClick={() => refund.refund(id)}
             disabled={
