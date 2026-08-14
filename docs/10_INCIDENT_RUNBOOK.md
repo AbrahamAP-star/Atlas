@@ -96,3 +96,27 @@ Guardar cada incidente como un archivo `docs/incidents/YYYY-MM-DD-<slug>.md` (ca
 - Ausencia de `onlyOwner`/pausa: decisión ya documentada y justificada en `02_SMART_CONTRACT_SPEC.md` § "Por qué el contrato nunca queda bloqueado".
 - Patrón pull-payment / irreversibilidad de `claimFunds`: `01_ARCHITECTURE.md` § 1.
 - Precedente de redeploy sin migración de fondos (mismo mecanismo, en testnet): `05_CRITICAL_REVIEW.md` § "Nueva función: deleteProject" y § "Decision revertida... backend mínimo" (mismo patrón de "nuevo deploy, dirección nueva, `.env` actualizado").
+
+## Apéndice A — Incidente técnico de frontend: Lighthouse `NO_FCP`
+
+Este incidente no afectaba fondos ni transacciones, pero bloqueaba la medición local de rendimiento. La referencia completa está en `09_ROADMAP_MEJORAS.md` § 7.
+
+### Síntoma
+
+`npm run build` generaba SSR válido y el navegador mostraba la landing, pero Lighthouse terminaba con `NO_FCP`. Una página estática mínima pasaba. Bloquear JavaScript no lo solucionaba.
+
+### Diagnóstico correcto
+
+La condición suficiente era una animación CSS above-the-fold cuyo frame inicial tenía `opacity: 0` y `animation-fill-mode: both`. La animación `reveal-immediate-in` dejaba el contenido en un estado no pintable cuando Lighthouse/CDP pausaba o no avanzaba el reloj de animaciones. No asumir que un HTML SSR correcto descarta un problema de CSS de pintura.
+
+### Corrección
+
+Animar únicamente `transform` y dejar `opacity` sin animar, de forma que el elemento sea visible/pintable desde el primer frame. No eliminar la landing, SSR, JavaScript ni Lighthouse para ocultar el síntoma. Antes de continuar con el diagnóstico, reinstalar con `npm ci` si existe evidencia de mezcla de `npm` y `pnpm`.
+
+### Checklist de regresión
+
+1. `cd frontend2.0 && npm ci`
+2. `npm run build`
+3. `npm run preview`
+4. Medir la URL del preview con Lighthouse.
+5. Si vuelve `NO_FCP`, comparar una corrida con las animaciones above-the-fold desactivadas y revisar primero `opacity: 0`, `visibility: hidden` y `animation-fill-mode: both`.

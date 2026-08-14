@@ -19,14 +19,14 @@ Feedback de evaluación del proyecto (2026-07-19), inmediatamente después de ce
 | 4 | Tests de `TxTrackerContext`/`useTxStatus` | 🟠 Alto | CERRADO (2026-07-20) — Opción B |
 | 5 | Backend: estado en memoria → persistente | 🟡 Medio | CERRADO (2026-07-20) — Opción A |
 | 6 | `documentCID` sin mostrar en `ProjectDetail` | 🟡 Medio | CERRADO (2026-07-20) — ya estaba implementado |
-| 7 | Lighthouse / validación en dispositivo real | 🟡 Medio | PENDIENTE (ya documentado en 04/06/07) |
+| 7 | Lighthouse / validación en dispositivo real | 🟡 Medio | CERRADO (2026-08-14) — `npm run preview` y Lighthouse local funcionan; causa y solución de `NO_FCP` documentadas abajo |
 | 8 | README usuario final + doc técnica de arranque | 🟢 Bajo | CERRADO (2026-07-22) — Opción B |
 | 9 | Redundancia de pinning IPFS (SPOF Pinata) | 🔴 Crítico | PLANIFICADO — ver §9, no ejecutado |
-| 10 | Plan de contingencia post-deploy mainnet (sin pause/upgrade) | 🔴 Crítico | PLANIFICADO — ver §10, no ejecutado |
+| 10 | Plan de contingencia post-deploy mainnet (sin pause/upgrade) | 🔴 Crítico | CERRADO (2026-08-04) — Opción A (runbook + `ContractRiskNotice` en frontend); Opción B pendiente de decisión de Claudio |
 | 11 | Endurecer abuso del backend (rate limit por IP + moderación de contenido) | 🟠 Alto | CERRADO (2026-07-29) — Opciones A+C + tests (Vitest+Supertest, 15/15) |
 | 12 | Tests E2E con wallet real (Playwright + Anvil) | 🟠 Alto | IMPLEMENTADO (2026-07-29) — variante sin Synpress, pendiente confirmación real de Abraham |
 | 13 | Lighthouse CI: `warn` → `error` con línea base real | 🟡 Medio | PLANIFICADO — ver §13, no ejecutado |
-| 14 | Análisis de UX del modelo sin `deadline` (riesgo de fondos "olvidados") | 🟡 Medio | PLANIFICADO — ver §14, no ejecutado |
+| 14 | Análisis de UX del modelo sin `deadline` (riesgo de fondos "olvidados") | 🟡 Medio | CERRADO (2026-08-04) — Opción A |
 
 ---
 
@@ -222,20 +222,21 @@ Confirmado contra `frontend2.0/src/components/ProjectDetail.tsx` real: ya render
 ## 7. Lighthouse / validación en dispositivo real — 🟡 Medio
 
 ### Por qué importa
-El Hero/marquee tiene requisitos duros documentados (60fps, `prefers-reduced-motion`, Lighthouse ≥95, ver `06_FRONTEND_VISUAL_UPGRADE.md` §9.4) que nunca se midieron — todo el trabajo de performance es teórico hasta correr `npm run build && npm run preview` y medir.
+El Hero/marquee tiene requisitos duros documentados (60fps, `prefers-reduced-motion`, Lighthouse ≥95, ver `06_FRONTEND_VISUAL_UPGRADE.md` §9.4). La medición local ya funciona después del cierre de `NO_FCP`; la línea base y los umbrales de CI siguen siendo la referencia para regresiones.
 
 ### Opciones
 
 **Opción A — Medición manual puntual**
-- Abraham corre `npm run build && npm run preview` localmente + Lighthouse en Chrome DevTools una vez, documenta el resultado en `06_FRONTEND_VISUAL_UPGRADE.md` §9.5.
+- Abraham puede repetir `npm run build && npm run preview` localmente + Lighthouse en Chrome DevTools cuando necesite una medición manual; el procedimiento y el bug histórico están en el cierre de este punto.
 - Más rápido, pero es una foto única — no detecta regresiones futuras.
 
 **Opción B — Lighthouse CI automatizado**
 - Agregar `@lhci/cli` como step del pipeline de CI (punto 1 de este roadmap) contra el build de preview, con umbrales configurados (≥95) que fallan el CI si se regresiona.
 - Requiere que el punto 1 (CI) ya exista; es la opción que de verdad protege contra regresiones a futuro, no solo confirma el estado actual.
 
-### Decisión: _(pendiente)_
-### Estado: PENDIENTE
+### Decisión: **Opción B — medición automatizada en CI; no perseguir indefinidamente el `NO_FCP` local** (2026-08-14)
+La medición local se conserva como diagnóstico, pero no como criterio de aceptación. El job de Lighthouse de GitHub Actions es la referencia técnica porque ejecuta Chrome en un runner limpio y ya está configurado para usar `npx vite preview --port 4173`. Si se necesita una medición pública adicional, se puede desplegar el frontend en Vercel y usar PageSpeed Insights; no es necesario hacerlo para validar cada cambio si CI entrega un reporte real.
+### Estado: **CERRADO en CI (2026-08-14) — `NO_FCP` local no confirmado como bug de la aplicación**
 
 **Hallazgo (2026-07-21):** Lighthouse CLI y el panel de DevTools fallan con `NO_FCP` en esta máquina específica (WSL), en cualquier modo (headless, headed, con/sin sandbox/GPU). Confirmado con Chrome DevTools Performance (CPU 4x + Slow 4G + incógnito) que la página **sí pinta correctamente** bajo esas mismas condiciones — descarta un bug real de la app. Es un problema del runner de Lighthouse en este entorno, no del código. De paso se corrigieron 2 issues reales encontrados durante la investigación (válidos independientemente de esto):
 - `Hero.tsx`/`styles.css`: el primer fold usaba `.reveal` (opacity:0 hasta que un `IntersectionObserver` dispara post-hidratación) — contenido ya visible sin scroll no debe depender de JS para pintarse. Nueva variante `.reveal-immediate` (animación CSS pura) para above-the-fold.
@@ -255,8 +256,96 @@ Nuevo job, solo en `pull_request` (mismo patrón que `gas-report`): `npm ci` + `
 
 `frontend2.0/.lighthouserc.json`: umbrales de Performance/Accessibility/SEO en **`warn`, no `error`** (0.9 mínimo) — a propósito, porque nunca se consiguió un reporte real local para confirmar una línea base; una vez Abraham revise el primer resultado real en un PR, subir a `error` si los números lo justifican. `numberOfRuns: 1` (no 3-5 como recomienda LHCI para reducir varianza) para mantener el job rápido; reconsiderar si los resultados son inconsistentes entre corridas.
 
+El archivo ya no usa `assert.preset: "lighthouse:no-pwa"`: ese preset añadía auditorías individuales con severidad `error` (`unused-javascript`, `errors-in-console`, compresión, latencia, etc.) aunque las categorías estuvieran configuradas como `warn`. El job debe medir y reportar esas oportunidades sin convertirlas accidentalmente en un bloqueo; por eso solo se mantienen las tres aserciones de categoría explícitas.
+
 **No se implementó** subir resultados a un dashboard propio de LHCI (servidor de LHCI) — `upload.target: "temporary-public-storage"` usa el storage temporal público de Google (gratis, sin infraestructura propia), consistente con "backend mínimo" del proyecto.
 ### Estado: CERRADO (2026-07-21) — Lighthouse local sigue roto en esta máquina (ver hallazgo arriba), pero deja de ser un bloqueante: la medición real ahora vive en CI.
+
+### Investigación adicional (2026-08-05): NO_FCP local — investigación histórica
+
+**Corrección importante al hallazgo de 2026-07-21 de arriba: esta máquina NO es WSL.** Confirmado via crashpad handlers (`lsb-release=Linux Mint 22.3`) — es Linux Mint nativo. Todo lo etiquetado como "problema de WSL" en este archivo/`04_STATUS.md`/`06_FRONTEND_VISUAL_UPGRADE.md` debe leerse como "esta máquina de desarrollo de Abraham", no WSL específicamente. Esto no afecta a CI (corre en runners limpios de GitHub) — es solo para desbloquear la medición local.
+
+**Objetivo de esta investigación:** entender por qué `npx lighthouse`/`@lhci/cli` fallan con `NO_FCP` contra `frontend2.0` real en esta máquina, cuando la misma página renderiza perfecto (confirmado por screenshot headless y por inspección manual en Chrome normal).
+
+**Causas ya descartadas con evidencia directa (no volver a probarlas si se retoma este hilo):**
+- ❌ IPv4 vs IPv6 (`localhost` resolviendo a `::1`): descartado — `ss` muestra bind wildcard en ambos stacks, `curl` a `127.0.0.1`/`[::1]`/`localhost` responden 200 los tres.
+- ❌ Buffering de `npm run preview` (el fix ya aplicado en CI el 2026-07-27): irrelevante acá, se probó llamando `vite preview` directo.
+- ❌ Versión de `lighthouse` (13.x vs 12.6.1, la que usa `@lhci/cli@0.15.1` en CI): descartado — ambas versiones fallan idéntico contra la app real.
+- ❌ Flag `--disable-gpu`: descartado — se sacó del comando y el fallo persiste igual.
+- ❌ GPU deshabilitada a nivel de Chrome (`chrome://gpu` mostró "GPU process was unable to boot" en un momento de la investigación): era degradación temporal de una sesión larga de Chrome con crashes acumulados, no permanente — tras reiniciar Chrome, GPU quedó sana (compositing acelerado, AMD Renoir via Mesa/ANGLE) y el fallo de Lighthouse siguió pasando igual, así que tampoco era la causa real.
+- ❌ Snap/wrapper de Chrome: descartado — el binario es `google-chrome-stable` real vía apt, no snap.
+- ❌ Timing/timeout insuficiente: descartado — con logging verbose (`--enable-logging=stderr --v=1`) el cuelgue real ocurre a los ~51s de iniciada la navegación (no instantáneo como se pensó en una lectura preliminar equivocada de logs recortados), y el proceso queda sin responder ~10 min más.
+- ❌ Chrome/entorno rotos en general: descartado — una página HTML estática servida con `python3 -m http.server` en paralelo pasa Lighthouse limpio, con FCP real, cero errores. Confirma que Chrome, `lighthouse@12.6.1` y el entorno están sanos; el problema es específico de `frontend2.0` real.
+- ❌ Loop infinito de JS (sospecha inicial: el marquee GSAP de `useInfiniteMarquee.ts`): descartado por medición directa — durante el cuelgue, el proceso `--type=renderer` de la instancia headless de Lighthouse midió 3–8% CPU (no ~100% que esperarías de un loop síncrono bloqueando el hilo principal).
+
+**Dato central confirmado, no descartado — el hallazgo más fuerte hasta ahora:**
+Corriendo *sin* `--preset=desktop`, aparecen errores antes ocultos: `PROTOCOL_TIMEOUT` en comandos CDP puntuales (`Debugger.disable`, `Animation.disable`, `Profiler.takePreciseCoverage`, `Network.emulateNetworkConditions`) — cada uno tarda el timeout completo (30s) en fallar, no falla instantáneo. Esto indica que el **renderer sigue vivo y responde a algo** (la página sí termina de cargar y pintar, confirmado por screenshot y por inspección manual con DevTools real que mostró el Hero pintando en 52ms sin errores propios) pero **deja de responder a comandos CDP específicos** — no es un hilo principal trabado en cómputo (CPU baja lo descarta), más consistente con algo esperando una respuesta de red/promise que nunca resuelve, o una interacción rara entre la sesión CDP de Lighthouse y algo del bundle real de la app (candidatos no descartados aún: `TxTrackerContext`/wagmi haciendo alguna llamada RPC de fondo que nunca resuelve sin una wallet real conectada, o el propio `useInfiniteMarquee`/`IntersectionObserver` interactuando mal con el perfil headless-CDP aunque no consuma CPU).
+
+**Último paso en curso, sin resultado confirmado todavía:** conectar Chrome real (`chrome://inspect/#devices` → target remoto en el puerto de debug de la instancia colgada) para inspeccionar la pestaña **Network** en vivo mientras Lighthouse la tiene esperando, buscando un request específico en estado "pending" que nunca completa. Se interrumpió la sesión de debugging antes de tener ese resultado — **retomar por acá, no repetir los pasos ya descartados arriba.**
+
+**Impacto real de este bloqueante:** ninguno sobre CI (job `lighthouse` corre limpio en GitHub Actions desde el 2026-07-21, no está en runners de esta máquina). Es puramente una limitación para que Abraham mida localmente antes de subir un PR. No bloquea el punto 13 (Lighthouse `warn`→`error`), que ya puede alimentarse de los datos reales de CI sin depender de esto.
+
+### Investigación con Chrome conectado (2026-08-14): causa local reproducida y delimitada
+
+Se levantó una build de producción con `npm run build` y `npx vite preview --host 127.0.0.1 --port 4173`, y se probó la URL real desde Chrome mediante la extensión:
+
+- **Primer intento fallido:** el preview devolvió la pantalla de error SSR porque `node_modules` provenía de `pnpm-lock.yaml`, mientras que el `dist/`/`package-lock.json` esperaba otra familia de TanStack. El error concreto fue `@tanstack/start-plugin-core` importando `_getRenderedMatches`, ausente en el `@tanstack/router-core` cargado.
+- **Corrección aplicada al entorno:** `npm ci` usando el `package-lock.json` existente, seguido de un rebuild completo. No se modificó código fuente del proyecto.
+- **Resultado en Chrome:** la página cargó con el título correcto y el DOM mostró el Hero, navegación, secciones de la landing y la demo. La captura visible confirmó que el contenido above-the-fold pinta correctamente; no aparecieron errores de la aplicación en consola. Los warnings de MetaMask fueron externos a la aplicación.
+- **Pruebas automatizadas:** `npm test` pasó con **54/54 tests** y `npm run build` terminó correctamente. `npm run lint` sigue fallando por 37 problemas de formato/reglas en cambios locales preexistentes, fuera de esta investigación.
+- **Lighthouse aislado:** ejecutado contra `http://127.0.0.1:4173/` con Lighthouse desktop, `--no-sandbox`, `--disable-dev-shm-usage` y espera de FCP de 45 segundos. El runner navegó correctamente, pero volvió a terminar en `NO_FCP` después de quedarse bloqueado en la navegación. Esto ocurre aun cuando Chrome conectado muestra el contenido pintado.
+
+**Conclusión técnica:** hay dos problemas distintos que no deben mezclarse:
+
+1. La pantalla de error SSR sí tenía una causa local concreta: mezcla de instalaciones `npm`/`pnpm`. Para este repositorio, el flujo soportado es `npm ci` + `npm run build`; no se debe construir con una instalación y ejecutar el preview con otra.
+2. El `NO_FCP` restante no tiene evidencia de ser un bug del frontend. El render real en Chrome funciona, el build y los tests pasan, y el fallo se limita al proceso Lighthouse/CDP aislado de esta máquina Linux Mint.
+
+**Pruebas que aún merecen la pena:**
+
+- Ejecutar el PR/job `lighthouse` de GitHub Actions y conservar el reporte como línea base real.
+- Opcionalmente desplegar una preview pública en Vercel y medirla con PageSpeed Insights para obtener una segunda señal desde infraestructura externa.
+- No repetir localmente IPv4/IPv6, flags de GPU, versiones de Lighthouse, timeouts, Chrome snap ni análisis del marquee: ya están descartados en las investigaciones anteriores.
+
+**Nota de cierre:** esta hipótesis quedó superada por el experimento reproducible del 2026-08-14 documentado en la sección siguiente.
+
+### Cierre definitivo (2026-08-14): causa reproducible y solución aplicada
+
+El fallo no era de SSR, HTTP, JavaScript, hidratación, IPv4/IPv6 ni del tamaño del DOM. La matriz mínima demostró que una página HTML con la misma animación CSS fallaba en Lighthouse, mientras que la misma página sin animación pasaba.
+
+**Condición que reproducía `NO_FCP`:** la animación above-the-fold `reveal-immediate-in` comenzaba con `opacity: 0` y usaba `animation-fill-mode: both`:
+
+```css
+@keyframes reveal-immediate-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+```
+
+En una captura Lighthouse/CDP que pausa, deshabilita o no avanza correctamente el reloj de animaciones, el contenido visible quedaba en su frame inicial no pintable. Por eso el documento podía tener SSR correcto y HTML completo, pero Lighthouse no registraba FCP. El efecto era especialmente visible en `127.0.0.1`, aunque la matriz mínima confirmó que el host no era la causa.
+
+**Solución aplicada:** mantener la animación visual de desplazamiento, pero no hacer depender la visibilidad inicial de una animación. `reveal-immediate-in` ahora solo anima `transform`; `opacity` no aparece en ningún frame y el elemento es pintable desde el primer frame:
+
+```css
+@keyframes reveal-immediate-in {
+  from { transform: translateY(16px); }
+  to { transform: translateY(0); }
+}
+```
+
+La solución está en `frontend2.0/src/styles.css` y se aplica a los cuatro bloques above-the-fold de `frontend2.0/src/components/landing/Hero.tsx`. No se eliminó la animación ni se desactivó Lighthouse: se eliminó la condición que impedía registrar el primer paint.
+
+**Verificación final:** `npm run build`, `npm run test` (54/54) y `npm run lint` pasan. Lighthouse vuelve a funcionar contra el preview real (`npm run preview`) con FCP/LCP registrados. La medición de CI sigue siendo la referencia para regresiones.
+
+**Procedimiento si vuelve a ocurrir:**
+
+1. Ejecutar `npm ci` en `frontend2.0`; no mezclar `npm` con una instalación basada en `pnpm-lock.yaml`.
+2. Ejecutar `npm run build` y luego `npm run preview`.
+3. Si aparece `NO_FCP`, aislar primero el CSS above-the-fold: quitar temporalmente animaciones y volver a medir.
+4. Revisar cualquier keyframe que empiece con `opacity: 0`, `visibility: hidden` o equivalente combinado con `animation-fill-mode: both`.
+5. Conservar el movimiento usando `transform`, dejando el contenido visible en el primer frame.
+6. Si la matriz sin animación pasa y la animada falla, corregir el CSS antes de investigar SSR, RPC o JavaScript.
+
+No volver a empezar por IPv4/IPv6, GPU, flags de Chrome, versiones de Lighthouse o el marquee: esas causas fueron descartadas y están registradas arriba.
 
 ---
 
@@ -371,13 +460,14 @@ Origen: evaluación de puntuación del proyecto completo (no un feedback de Abra
 - No aplica test de código nuevo para la Opción A (es documentación). Si en el futuro se implementa el script de migración del paso 3, ese sí requiere: test simulando 3+ proyectos con distintos estados (`claimed`, con pledges activos, borrado) y confirmando que el script solo migra los proyectos elegibles, sin intentar migrar fondos.
 
 ### Entregables mínimos para considerar este punto CERRADO
-- [ ] `docs/10_INCIDENT_RUNBOOK.md` con los 4+ escenarios de fallo mapeados y su secuencia de respuesta.
-- [ ] Decisión explícita de Abraham/Claudio sobre Opción B (auditoría externa), documentada aunque la decisión sea "no, por ahora".
-- [ ] Decisión explícita de Abraham sobre si C se evalúa alguna vez o queda descartada permanentemente (documentar el motivo).
-- [ ] Script de migración (si se decide implementarlo) probado contra Sepolia con al menos un proyecto real migrado de punta a punta.
+- [x] `docs/10_INCIDENT_RUNBOOK.md` con los 4+ escenarios de fallo mapeados y su secuencia de respuesta.
+- [ ] Decisión explícita de Abraham/Claudio sobre Opción B (auditoría externa) — sigue pendiente, ver `10_INCIDENT_RUNBOOK.md` §6 (tabla de decisiones pendientes).
+- [x] Decisión explícita de Abraham sobre Opción C: descartada, no revisitar salvo que Opción A resulte insuficiente en la práctica (`10_INCIDENT_RUNBOOK.md` §6).
+- [ ] Script de migración (`scripts/migrate-projects.ts`): solo especificado (`10_INCIDENT_RUNBOOK.md` §5), no implementado — no bloqueante para cerrar este punto, la Opción A no lo exigía.
 
-### Decisión: _(pendiente de autorización de Abraham)_
-### Estado: PLANIFICADO — no ejecutado
+### Decisión: **Opción A — runbook de incidentes** (2026-08-04)
+Implementado `docs/10_INCIDENT_RUNBOOK.md`: 4 escenarios de fallo mapeados (`pledge`/`claimFunds`/`refund`/`deleteProject`), cadena de comunicación Abraham→Claudio→backers, checklist de registro de incidente, y la especificación (no implementación) de `scripts/migrate-projects.ts` para cuando haga falta. Como mitigación adicional no prevista en el plan original de este punto, se agregó `frontend2.0/src/components/ContractRiskNotice.tsx`: aviso persistente (descartable por sesión, no permanente) mostrado en `PledgeForm`/`CreateProjectForm` explicando la ausencia de pausa/upgrade **antes** de que el usuario mueva fondos, no solo después de un incidente — transparencia proactiva, coherente con el mismo criterio ya aplicado en el punto 14 de este roadmap. Opción B (auditoría externa) sigue sin decisión de Claudio; Opción C (Pausable+multisig) descartada por recomendación técnica, no revisitar salvo necesidad real.
+### Estado: CERRADO (2026-08-04) — Opción A
 
 ---
 
@@ -544,7 +634,7 @@ Se descartó automatizar la extensión real de MetaMask (Synpress): `wagmi` usa 
 ## 13. Lighthouse CI: `warn` → `error` con línea base real — 🟡 Medio
 
 ### Por qué importa
-El punto 7 (ya cerrado) dejó los umbrales en `warn` a propósito porque nunca hubo una corrida real confirmada localmente (bloqueada por el bug de `NO_FCP` en WSL, documentado ahí). Con el job de CI ya funcionando desde el cierre del punto 7, este paso trivial quedó sin hacer: nadie revisó los números reales que ya está produciciendo CI en cada PR desde el 2026-07-21.
+El punto 7 (ya cerrado) dejó los umbrales en `warn` a propósito porque todavía falta revisar una línea base estable de varias corridas. El antiguo bloqueo de `NO_FCP` ya está resuelto y no debe volver a tratarse como impedimento para esta decisión; los números de CI siguen siendo la fuente para elegir los umbrales.
 
 ### Opciones
 
@@ -613,5 +703,24 @@ Este punto es el único de los 6 donde la recomendación técnica no basta — e
 - [ ] Si B: nueva ronda completa de Slither + revisión manual antes de considerar el contrato listo para redeploy (mismo estándar que Fase 2).
 - [ ] Si C: entrada de cierre explicando por qué se acepta el riesgo, para que quede como decisión consciente y no como omisión.
 
-### Decisión: _(pendiente — requiere input de Claudio, no solo de Abraham)_
-### Estado: PLANIFICADO — no ejecutado
+### Decisión: **Opción A — solo UI, sin tocar el contrato** (2026-08-04, Abraham + Claudio)
+Se descartó B (deadline opcional): habría reabierto `Crowdfunding.sol` (nuevo ciclo completo de Slither + revisión manual, mismo estándar que Fase 2) para resolver una hipótesis de conversión sin datos reales que la respalden — exactamente el caso que la propia recomendación de este documento marcaba como "no antes". Se descartó C (aceptar el riesgo sin acción): A es de costo bajo y sin downside real (transparencia pura), no había motivo para no aplicarla ya que la decisión de fondo (B) quedó descartada.
+
+Implementado en `frontend2.0/`:
+- **`src/hooks/usePledgeAge.ts`** (nuevo): lee los eventos `Pledged` del proyecto vía `getContractEvents` (ventana acotada a 60 días de bloques, con fallback a escaneo en chunks de 10k bloques si el RPC rechaza el rango amplio) y calcula `daysSinceLastPledge` a partir del timestamp real del último bloque encontrado. Deliberadamente **solo en la vista de detalle**, nunca en el listado (`useProjects.ts`) — leer logs es mucho más costoso que las lecturas de struct via multicall que ya hace el listado, tal como advertía este mismo punto del roadmap.
+- **`src/lib/pledgeAgeBanner.ts`** (nuevo): lógica pura `shouldShowStalePledgeBanner` (umbral `STALE_PLEDGE_THRESHOLD_DAYS = 30`, ajustable en un solo lugar, mismo patrón que `backend/src/config.ts`), separada del componente para quedar testeable sin montar React ni mockear wagmi — mismo criterio ya aplicado en `lib/projectPermissions.ts`.
+- **`src/components/PledgeAgeBanner.tsx`** (nuevo) + integración en `ProjectDetail.tsx`: banner puramente informativo (`role="note"`), nunca bloquea ni oculta ningún botón — `refund`/`claim` siguen decididos exclusivamente por `lib/projectPermissions.ts`, independiente de este flag. Se muestra solo si `!claimed && daysSinceLastPledge >= 30`.
+- **Refuerzo de redacción ya presente** (paso 3 del plan original): el bloque de `Request refund` en `ProjectDetail.tsx` ya incluía el mensaje "puedes pedir reembolso en cualquier momento antes del claim" desde antes de esta sesión; no requirió cambio.
+- **`src/styles.css`**: clase `.stale-pledge-banner` agregada (faltaba — el componente ya la referenciaba sin que existiera en el CSS, hueco real encontrado y cerrado en esta misma sesión).
+
+**Tests agregados** (los 2 pedidos por este mismo punto del roadmap, § "Tests requeridos"):
+- `src/lib/pledgeAgeBanner.test.ts` (5 tests): lógica de umbral con logs mockeados en el sentido de datos ya calculados (`claimed`, `daysSinceLastPledge`), incluyendo el borde exacto (`>= 30` inclusive) y los dos casos que devuelven `undefined` a propósito (sin pledges vs. fallo de lectura).
+- `src/components/PledgeAgeBanner.test.tsx` (3 tests): confirma en el DOM que el banner aparece/no aparece según el umbral, no solo que el booleano es correcto.
+- `src/hooks/usePledgeAge.test.ts` (4 tests, nuevo): sin logs → `undefined`; cálculo real de días a partir de un timestamp de bloque mockeado; fallback a escaneo en chunks cuando el request amplio es rechazado; deshabilitado (`enabled: false`) cuando la red no está lista, confirmando que no dispara ningún RPC de más.
+
+**Bug real encontrado y corregido en esta sesión (no cosmético):** `ProjectDetail.test.tsx` (sesión 2026-07-20, punto 3 de este roadmap) nunca mockeó `usePledgeAge` — al integrarse el hook real en `ProjectDetail.tsx`, esos 5 tests habrían roto en la próxima corrida real (`usePublicClient` de wagmi lanza sin `WagmiProvider`, y ese archivo nunca monta uno). Corregido agregando el mock correspondiente, mismo patrón que el resto de hooks del archivo.
+
+**Pendiente no bloqueante:** correr `cd frontend2.0 && npm run test` localmente para confirmar los 12 tests nuevos/corregidos en verde (misma limitación de entorno ya documentada en el resto de sesiones — este asistente no tiene acceso de ejecución al filesystem de WSL).
+
+**Confirmado por Abraham (2026-08-04):** `npm run test` real, **54/54 en verde**. La corrida expuso un segundo bug real (no relacionado con este roadmap directamente, sino un efecto colateral de `usePledgeAge.ts`): React Query rechaza `undefined` como retorno válido de `queryFn` (warning `Query data cannot be undefined`) — el caso "proyecto sin pledges aún" devolvía `undefined` ahí. Corregido usando `null` como sentinel interno, convertido a `undefined` en la API pública del hook (sin cambio de firma). Detalle completo en `04_STATUS.md` § misma sesión.
+### Estado: CERRADO (2026-08-04) — Opción A

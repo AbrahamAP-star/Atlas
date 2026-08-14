@@ -12,6 +12,10 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   fullyParallel: false, // all specs share the same Anvil chain state — no parallel runs
+  // fullyParallel only keeps tests inside ONE file sequential — different spec
+  // files still ran in separate workers at the same time without this,
+  // racing two "creator" txs from the same Anvil account against one contract.
+  workers: 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {

@@ -14,7 +14,7 @@
  * spawning a second node — Anvil doesn't allow two processes on the same port.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const RPC_URL = "http://127.0.0.1:8545";
@@ -73,7 +73,23 @@ function startAnvilIfNeeded(): void {
   console.log(`Anvil starting in the background (PID ${anvil.pid}). Stop it later with: kill ${anvil.pid}`);
 }
 
+// Anvil's chain state is in-memory only and never survives a restart, but
+// Ignition's journal for it (ignition/deployments/chain-31337/) IS persisted
+// on disk. If Anvil got restarted since the last e2e:setup run (e.g. closing
+// the terminal that had it, killing the detached process), Ignition still
+// sees a "complete" journal from before and skips redeploying — silently
+// reusing an address with NO code on the current chain (confirmed via trace:
+// eth_call to nextProjectId() returned bare "0x", the empty-bytecode
+// signature). Unlike testnets (Sepolia), this journal must never persist
+// across runs here: Anvil is always a throwaway chain, so every e2e:setup
+// run must force a real, fresh deploy.
+const ANVIL_IGNITION_JOURNAL = "ignition/deployments/chain-31337";
+
 function deployToAnvil(): void {
+  if (existsSync(ANVIL_IGNITION_JOURNAL)) {
+    rmSync(ANVIL_IGNITION_JOURNAL, { recursive: true, force: true });
+    console.log(`Removed stale Ignition journal at ${ANVIL_IGNITION_JOURNAL} (Anvil state never persists, so neither should its deployment record).`);
+  }
   console.log("Deploying Crowdfunding.sol to Anvil...");
   const result = spawnSync("npx", ["hardhat", "run", "scripts/deploy.ts", "--network", "anvil"], {
     stdio: "inherit",

@@ -30,11 +30,24 @@ backend/data
 # artefactos del proyecto, solo salida de una medicion puntual.
 localhost_*.report.html
 
+# Local Lighthouse/CDP diagnostics (never release artifacts).
+frontend2.0/lh-*.json
+frontend2.0/*lighthouse*.json
+frontend2.0/*-screenshot.png
+frontend2.0/*-stderr.log
+
 # E2E (docs/09_ROADMAP_MEJORAS.md #12): Anvil resets its whole chain state on
 # every run, so its deployment record is never meant to be versioned (unlike
 # the real testnet deployments under deployments/ and ignition/deployments/).
+# Ignition names this folder by CHAIN ID, not "anvil" (31337 is Anvil's default
+# chain id) — the old "ignition/deployments/anvil" rule below never matched
+# anything real, which is how a stale chain-31337 journal ended up committed
+# and caused a real E2E bug (scripts/e2e-setup.ts silently reused a no-code
+# address after Anvil restarted). Kept the old pattern too in case a version
+# of Ignition/a different setup ever names it literally "anvil".
 deployments/anvil.json
 ignition/deployments/anvil
+ignition/deployments/chain-31337
 frontend2.0/.env.e2e.local
 frontend2.0/playwright-report
 frontend2.0/test-results

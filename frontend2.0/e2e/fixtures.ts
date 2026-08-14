@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { test as base, type Page } from "@playwright/test";
 
 /**
@@ -30,14 +31,14 @@ function injectedProviderScript(account: string): string {
     const ACCOUNT = "${account}";
 
     async function rpc(method, params) {
-      // No explicit Content-Type header on purpose: "application/json" is not
-      // CORS-safelisted, so the browser would send an OPTIONS preflight to
-      // Anvil first. Omitting it (the body is a plain string) keeps this a
-      // CORS-safelisted "simple request" with no preflight round-trip at all
-      // — one less thing that can silently break eth_chainId/eth_sendTransaction
-      // depending on how a given Anvil version answers OPTIONS.
+      // Content-Type is required: without it Anvil can't parse the body as a
+      // valid JSON-RPC request and replies with the generic -32600 "Invalid
+      // Request" error (confirmed via trace: connect.mutate failed with that
+      // exact message on the first real call, eth_chainId). Anvil's CORS is
+      // permissive by default, so the resulting preflight isn't an issue.
       const res = await fetch(RPC_URL, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params: params ?? [] }),
       });
       const json = await res.json();
@@ -82,7 +83,10 @@ type MetadataStore = Map<string, unknown>;
  * injectedProviderScript above) — only the backend's verification of it and
  * the IPFS round-trip are stubbed.
  */
-async function mockBackend(page: Page, metadataStore: MetadataStore): Promise<void> {
+async function mockBackend(
+  page: Page,
+  metadataStore: MetadataStore,
+): Promise<void> {
   await page.route("**/api/auth/nonce", (route) =>
     route.fulfill({ json: { message: "e2e-test-nonce-message" } }),
   );
@@ -90,12 +94,16 @@ async function mockBackend(page: Page, metadataStore: MetadataStore): Promise<vo
     route.fulfill({ json: { token: "e2e-test-session-token" } }),
   );
 
-  let fakeCidCounter = 0;
+  // randomUUID(), not an incrementing counter: a counter restarts at 0 on
+  // every test (mockBackend runs once per page), so two projects created by
+  // different spec files could land on the identical fake CID and collide in
+  // useProjectMetadata's CID-keyed cache — one project's card would then
+  // silently render with the other project's title.
   await page.route("**/api/pin-file", (route) =>
-    route.fulfill({ json: { cid: `QmE2EFile${fakeCidCounter++}` } }),
+    route.fulfill({ json: { cid: `QmE2EFile${randomUUID()}` } }),
   );
   await page.route("**/api/pin-json", (route) => {
-    const cid = `QmE2EJson${fakeCidCounter++}`;
+    const cid = `QmE2EJson${randomUUID()}`;
     metadataStore.set(cid, route.request().postDataJSON());
     return route.fulfill({ json: { cid } });
   });
@@ -105,7 +113,11 @@ async function mockBackend(page: Page, metadataStore: MetadataStore): Promise<vo
   await page.route("https://gateway.pinata.cloud/ipfs/**", (route) => {
     const cid = new URL(route.request().url()).pathname.split("/").pop() ?? "";
     const metadata = metadataStore.get(cid);
-    if (!metadata) return route.fulfill({ status: 404, json: { error: "unknown CID in this e2e run" } });
+    if (!metadata)
+      return route.fulfill({
+        status: 404,
+        json: { error: "unknown CID in this e2e run" },
+      });
     return route.fulfill({ json: metadata });
   });
 }
@@ -141,7 +153,9 @@ function logBrowserActivity(page: Page, persona: string): void {
       console.log(`[${persona}:console:${msg.type()}] ${msg.text()}`);
     }
   });
-  page.on("pageerror", (error) => console.log(`[${persona}:pageerror] ${error.message}`));
+  page.on("pageerror", (error) =>
+    console.log(`[${persona}:pageerror] ${error.message}`),
+  );
 }
 
 /** Two independent browser contexts sharing the same real Anvil chain state —

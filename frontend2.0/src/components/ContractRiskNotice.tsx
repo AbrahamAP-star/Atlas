@@ -53,7 +53,11 @@ export function ContractRiskNotice({ variant }: { variant: Variant }) {
   }
 
   return (
-    <div className="risk-notice" role="note" aria-label="Smart contract risk disclosure">
+    <div
+      className="risk-notice"
+      role="note"
+      aria-label="Smart contract risk disclosure"
+    >
       <span className="risk-notice__icon" aria-hidden="true">
         ⚠
       </span>
